@@ -102,3 +102,10 @@ config VIDEO_AD5816
         ---help---
           This is a driver for the AD5816 focuser
           for use with the tegra isp.
+
+config TEGRA_VIDEO_S5K4CDGX
+	tristate "s5k4cdgx is used"
+	default n
+	help
+	if Y ,select TEGRA_VIDEO_S5K4CDGX
+ 
