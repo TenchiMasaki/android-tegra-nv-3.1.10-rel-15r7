@@ -630,25 +630,6 @@ static struct s5k4cdgx_request s5k4cdgx_init_preview_conf0[] ={
 //==,==0x====),==========================================================================      
 //PR,EV0xIEW ),CONFIGURATION 0 (VGA, YUV, 30fps)  
 S5K4CDGX_REG(0x02E6),
-<<<<<<< HEAD
-S5K4CDGX_DATA(0x0400),	// #REG_0TC_PCFG_usWidth		: 640
-S5K4CDGX_DATA(0x0300),	// #REG_0TC_PCFG_usHeight		: 480
-S5K4CDGX_DATA(0x0005),	// #REG_0TC_PCFG_Format			: YUV output
-S5K4CDGX_REG(0x02FC),
-S5K4CDGX_DATA(0x0000),	// #REG_0TC_PCFG_uClockInd
-S5K4CDGX_REG(0x02EC),
-S5K4CDGX_DATA(0x3AA8), 	// #REG_0TC_PCFG_usMaxOut4KHzRate
-S5K4CDGX_DATA(0x3A88), 	// #REG_0TC_PCFG_usMinOut4KHzRate
-S5K4CDGX_REG(0x02F4),
-S5K4CDGX_DATA(0x0052), //0052	// #REG_0TC_PCFG_PVIMask
-S5K4CDGX_REG(0x0300),
-S5K4CDGX_DATA(0x0000),	// #REG_0TC_PCFG_FrRateQualityType
-S5K4CDGX_REG(0x02FE),
-S5K4CDGX_DATA(0x0000),	// #REG_0TC_PCFG_usFrTimeType
-S5K4CDGX_REG(0x0302),
-S5K4CDGX_DATA(0x03E8), // #REG_0TC_PCFG_usMaxFrTimeMsecMult10	: 7.5fps
-S5K4CDGX_DATA(0x01C6), //	// #REG_0TC_PCFG_usMinFrTimeMsecMult10	: 15fps
-=======
 S5K4CDGX_DATA(0x0280),	//#REG_0TC_PCFG_usWidth	                 320	    					
 S5K4CDGX_DATA(0x01e0),	//#REG_0TC_PCFG_usHeight                 240	
 S5K4CDGX_DATA(0x0005),	//#REG_0TC_PCFG_Format	                 YUV	
@@ -666,7 +647,6 @@ S5K4CDGX_DATA(0x0001),	//#REG_0TC_PCFG_FrRateQualityType 1b: FR (bin) 2b: Qualit
 S5K4CDGX_DATA(0x0535),	//#REG_0TC_PCFG_usMaxFrTimeMsecMult10	  
 S5K4CDGX_DATA(0x029a),	//#REG_0TC_PCFG_usMinFrTimeMsecMult10	
 //==,==0x====),==========================================================================  
->>>>>>> 780bcfaa283086857433410edc96390187246cde
 
 //==,==0x====),==========================================================================                                 
 // p,re0xview), configuration
@@ -714,17 +694,10 @@ S5K4CDGX_REG(0x03DE),
 S5K4CDGX_DATA(0x1388),	//0x2904 //#REG_0TC_CCFG_usMaxOut4KHzRate	          PCLK max	                                                   
 S5K4CDGX_DATA(0x1308),	//0x2904 //#REG_0TC_CCFG_usMinOut4KHzRate	          PCLK min                                                        
 S5K4CDGX_REG(0x03E6),
-<<<<<<< HEAD
-S5K4CDGX_DATA(0x0052), //0052	// #REG_0TC_CCFG_PVIMask
-S5K4CDGX_REG(0x03EE),
-S5K4CDGX_DATA(0x0001),       //#REG_0TC_CCFG_uClockInd 
-//002A,03F0
-=======
 S5K4CDGX_DATA(0x0042),	//#REG_0TC_CCFG_PVIMask 
 S5K4CDGX_REG(0x03F2),
 S5K4CDGX_DATA(0x0002),	 //#REG_0TC_CCFG_FrRateQualityType	          1b: FR (bin) 2b: Quality (no-bin)
 S5K4CDGX_REG(0x03F0),
->>>>>>> 780bcfaa283086857433410edc96390187246cde
 S5K4CDGX_DATA(0x0000),	// #REG_0TC_CCFG_usFrTimeType
 S5K4CDGX_REG(0x03F4),
 S5K4CDGX_DATA(0x1200),	//#REG_0TC_CCFG_usMaxFrTimeMsecMult10: 30 fps(0x014D)  25fps(0x0190)  20fps(0x01F4) 15fps(0x029A)  10fps(0x03E8)  7.5fps(0x0535)  4.0fps(0x09C4)
