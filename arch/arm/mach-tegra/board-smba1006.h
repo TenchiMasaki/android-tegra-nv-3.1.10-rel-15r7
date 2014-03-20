@@ -119,6 +119,8 @@ extern int smba_charge_init(void);
 extern int smba_regulator_init(void);
 extern int smba_s5k4cdgx_set_power(int enable);
 extern int smba_gps_pm_register_devices(void);
-extern int smba_gsm_pm_register_devices(void);
+extern void smba_gps_mag_init(void);
+extern void smba_gps_mag_poweron(void);
+extern void smba_gps_mag_poweroff(void);
 
 #endif
