@@ -156,7 +156,6 @@ int __init smba_uart_register_devices(void)
 	
 		uart_debug_init();
 		
-#if 0
 		/* Clock enable for the debug channel */
 		if (!IS_ERR_OR_NULL(debug_uart_clk)) {
 			
@@ -174,7 +173,6 @@ int __init smba_uart_register_devices(void)
 			pr_err("Not getting the clock %s for debug console\n",
 					debug_uart_clk->name);
 		}
-#endif
 	}
 
 	return platform_add_devices(smba_uart_devices,

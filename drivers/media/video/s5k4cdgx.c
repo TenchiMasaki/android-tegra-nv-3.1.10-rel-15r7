@@ -35,7 +35,7 @@
 #include "s5k4cdgx_regs.h"
 
 
-static int debug = 1;
+static int debug = 3;
 module_param(debug, int, 0644);
 
 #define DRIVER_NAME			"S5K4CDGX"
@@ -109,6 +109,7 @@ module_param(debug, int, 0644);
 
 /* Preview control section. n = 0...4. */
 #define PREG(n, x)			((n) * 0x26 + x) //??
+#define REG_TC_AF_AfCmd(n)		PREG(n, 0x700002c2)
 #define REG_P_OUT_WIDTH(n)		PREG(n, 0x700002e6)
 #define REG_P_OUT_HEIGHT(n)		PREG(n, 0x700002e8)
 #define REG_P_FMT(n)			PREG(n, 0x700002ea)
@@ -283,9 +284,9 @@ static const struct s5k4cdgx_pixfmt s5k4cdgx_formats[] = {
 };
 
 static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
-//	{2048, 1536},
-//	{1280, 1024},
-//	{1280, 720},
+	{2048, 1536},
+	{1280, 1024},
+	{1280, 720},
 	{800, 600}, /* SVGA */
 	{640, 480}, /* VGA */
 	{352, 288}, /* CIF */
@@ -294,8 +295,8 @@ static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 };
 
 static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
-	{ 1401, 7, {140100, 1000000}, {2048, 1536} }, /*  7.138 fps */
-	{ 666, 15, {66600, 1000000}, {2048, 1536} }, /* 15.015 fps */
+	{ 1401, 7, {7160, 1000000}, {2048, 1536} }, /*  7.138 fps */
+	{ 666, 15, {15037, 1000000}, {2048, 1536} }, /* 15.015 fps */
 	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
 	{ 500, 20, {20000, 1000000}, {800, 600} },
     { 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
@@ -303,6 +304,7 @@ static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
     { 333, 30, {33300, 1000000}, {352, 288} },   /* CIF */
     { 333, 30, {33300, 1000000}, {320, 240} },   /* QVGA */
     { 333, 30, {33300, 1000000}, {176, 144} },   /* QCIF */
+
 };
 
 #define S5K4CDGX_INTERVAL_DEF_INDEX 1
@@ -356,7 +358,7 @@ static int s5k4cdgx_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	ret = i2c_transfer(client->adapter, msg, 2);
 	*val = be16_to_cpu(*((u16 *)rbuf));
 
-	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x\n", addr, *val);
+	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x, ret=%d\n", addr, *val, ret);
 
 	return ret == 2 ? 0 : ret;
 }
@@ -366,7 +368,7 @@ static int s5k4cdgx_i2c_write(struct i2c_client *client, u16 addr, u16 val)
 	u8 buf[4] = {addr >> 8, addr & 0xFF, val >> 8, val & 0xFF};
 
 	int ret = i2c_master_send(client, buf, 4);
-	v4l2_dbg(3, debug, client, "i2c_write: 0x%04X : 0x%04x\n", addr, val);
+	v4l2_dbg(3, debug, client, "i2c_write: 0x%04X : 0x%04x, ret=%d\n", addr, val, ret);
 
 	return ret == 4 ? 0 : ret;
 }
@@ -449,8 +451,8 @@ static int s5k4cdgx_read(struct i2c_client *client, u32 addr, u16 *val)
 		ret = s5k4cdgx_i2c_write(client, REG_CMDRD_ADDRL, low);
 	if (!ret)
 		ret = s5k4cdgx_i2c_read(client, REG_CMDBUF0_ADDR, val);
-	if (!ret)
-		dev_err(&client->dev, "Failed to execute read command 0x%x\n",val);
+	if (ret)
+		dev_err(&client->dev, "Failed to execute read command 0x%x=0x%x\n",addr, val ? *val : 0);
 		
 	return ret;
 }
@@ -738,6 +740,18 @@ static int s5k4cdgx_set_input_params(struct s5k4cdgx *s5k4cdgx)
 	return ret;
 }
 
+const static struct s5k4cdgx_request s5k4cdgx_snapshot_reg_config[] ={
+//Active first capture config.                                                                                                                          
+//WRITE 	#REG_TC_GP_EnableCapture  		0001 //  capture                                                                                        
+//WRITE 	#REG_TC_GP_EnableCaptureChanged		0001 //                                                                                                       
+{0x0028, 0x7000},
+{0x002A, 0x028C}, //REG_TC_GP_EnableCapture  
+{0x0F12, 0x0001},
+{0x002A, 0x028E},  //REG_TC_GP_EnableCaptureChanged
+{0x0F12, 0x0001},                                                                                                                                        
+};
+
+
 /* This function should be called when switching to new user configuration set*/
 static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 				  int cid)
@@ -746,7 +760,10 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	u16 reg = 1;
 	int ret;
 
-	ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
+    //ret = s5k4cdgx_write(client, REG_TC_AF_AfCmd, 1);
+
+    if (!ret)
+		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
 	if (!ret)
@@ -772,7 +789,8 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 				  struct s5k4cdgx_preset *preset)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&s5k4cdgx->sd);
+	struct v4l2_subdev *sd = &s5k4cdgx->sd; 
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int idx = preset->index;
 	u16 frame_rate_q;
 	int ret;
@@ -807,8 +825,16 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
+
+
+	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config, ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
+	if (ret) {
+        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for Gamma LUT\n", __func__);
+		return ret;
+	}
+
 	if (!ret)
-		ret = s5k4cdgx_new_config_sync(client, 250, idx);
+		ret = s5k4cdgx_new_config_sync(client, 50000, idx); //250
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
 	if (!ret)
@@ -943,51 +969,6 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
 	// Update changed registers in init reg config2 sequence
 	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_config2, ARRAY_SIZE(s5k4cdgx_init_reg_config2));
 	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for JPEG\n", __func__);
-		return ret;
-	}
-	
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_gas, ARRAY_SIZE(s5k4cdgx_init_reg_gas));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for GAS (Grid Anti-shading)\n", __func__);
-		return ret;
-	}
-	
-	
-
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_ccm, ARRAY_SIZE(s5k4cdgx_init_reg_ccm));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for CCM\n", __func__);
-		return ret;
-	}	
-
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_awb, ARRAY_SIZE(s5k4cdgx_init_reg_awb));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for AWB\n", __func__);
-		return ret;
-	}	
-	
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_ae, ARRAY_SIZE(s5k4cdgx_init_reg_ae));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for AE\n", __func__);
-		return ret;
-	}	
-	
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_gamma_lut, ARRAY_SIZE(s5k4cdgx_init_reg_gamma_lut));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for Gamma LUT\n", __func__);
-		return ret;
-	}
-	
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_afit, ARRAY_SIZE(s5k4cdgx_init_reg_afit));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for AFIT table\n", __func__);
-		return ret;
-	}
-	
-	// Update changed registers in init reg config2 sequence
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_init_reg_config2, ARRAY_SIZE(s5k4cdgx_init_reg_config2));
-	if (ret) {
         v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg 2\n", __func__);
 		return ret;
 	}
@@ -1001,7 +982,7 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
         //v4l2_err(sd, "[S5K4CDGX] %s function err in configure_pixel_clocks\n", __func__);
 	//	return ret;
 	//}
-	
+
 	return 0;
 }
 
@@ -1042,9 +1023,16 @@ static int __s5k4cdgx_power_on(struct s5k4cdgx *s5k4cdgx)
 	if (s5k4cdgx->s_power)
 		ret = s5k4cdgx->s_power(1);
 	usleep_range(4000, 4000);
-
-	if (s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
-		msleep(20);
+	msleep(100);
+	if (!s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		pr_err("%s: Failed to assert1 reset\n", __func__);		
+	msleep(50);
+	if (!s5k4cdgx_gpio_assert(s5k4cdgx, RST))
+		pr_err("%s: Failed to deassert reset\n", __func__);	
+	msleep(50);
+	if (!s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		pr_err("%s: Failed to assert2 reset\n", __func__);
+	msleep(50);
 
 	return ret;
 }
@@ -1175,6 +1163,7 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 			fiv = iv;
 			min_err = err;
 		}
+		break;
 	}
 	s5k4cdgx->fiv = fiv;
 
