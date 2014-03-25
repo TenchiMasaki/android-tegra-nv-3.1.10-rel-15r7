@@ -60,9 +60,9 @@ static struct platform_device *smba_uart_devices[] __initdata = {
 
 /* Prefer lower clocks if possible */
 static struct uart_clk_parent uart_parent_clk[] = {
-        [0] = {.name = "clk_m"},        //  12000000
-        [1] = {.name = "pll_p"},        // 216000000
-        [2] = {.name = "pll_c"},        // 600000000
+	[0] = {.name = "clk_m"}, 	//  12000000
+	[1] = {.name = "pll_p"},	// 216000000
+	[2] = {.name = "pll_c"},	// 600000000
 };
 
 static struct tegra_uart_platform_data smba_uart_pdata;
@@ -72,10 +72,17 @@ static void __init uart_debug_init(void)
 	int debug_port_id;
 
 	debug_port_id = get_tegra_uart_debug_port_id();
-
 	if (debug_port_id < 0)
-		debug_port_id = 0;
+		debug_port_id = -1;
+	pr_info("Selecting UART NULL as the debug console\n");
+	debug_uart_clk = clk_get_sys("serial8250.0", "uartc");
+	debug_uart_port_base = ((struct plat_serial8250_port *)(
+		debug_uartc_device.dev.platform_data))->mapbase;
+	debug_uart_port_clk_rate = ((struct plat_serial8250_port *)(
+		debug_uartc_device.dev.platform_data))->uartclk; 
 
+
+#if 0
 	switch (debug_port_id) {
 	case 0:
 		/* UARTA is the debug port. */
@@ -125,6 +132,7 @@ static void __init uart_debug_init(void)
 			
 		break;
 	}
+#endif
 }
 
 int __init smba_uart_register_devices(void)
