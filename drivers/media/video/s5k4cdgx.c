@@ -107,9 +107,13 @@ module_param(debug, int, 0644);
 #define REG_G_PREV_OPEN_AFTER_CH	0x700002b0
 #define REG_G_PREV_CFG_ERROR		0x700002b2
 
+#define REG_TC_AF_AFCMD				0x700002c2
+#define REG_TC_AF_AFMODE			0x700002c4
+#define REG_TC_GP_ENABLE_CAPTURE	0x7000028c
+#define REG_TC_GP_ENABLE_CAPTURE_CHANGED	0x7000028e
+
 /* Preview control section. n = 0...4. */
 #define PREG(n, x)			((n) * 0x26 + x) //??
-#define REG_TC_AF_AfCmd(n)		PREG(n, 0x700002c2)
 #define REG_P_OUT_WIDTH(n)		PREG(n, 0x700002e6)
 #define REG_P_OUT_HEIGHT(n)		PREG(n, 0x700002e8)
 #define REG_P_FMT(n)			PREG(n, 0x700002ea)
@@ -295,15 +299,17 @@ static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 };
 
 static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
-	{ 1401, 7, {7160, 1000000}, {2048, 1536} }, /*  7.138 fps */
-	{ 666, 15, {15037, 1000000}, {2048, 1536} }, /* 15.015 fps */
+	{ 1401, 7, {7138, 1000000}, {2048, 1536} }, /*  7.138 fps */
+	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
+	{ 1000, 10, {10000, 1000000}, {1280, 1024} }, /* 10 fps */
+	{ 666, 15, {15000, 1000000}, {1280, 1024} }, /* 15 fps */
 	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
 	{ 500, 20, {20000, 1000000}, {800, 600} },
     { 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
-	{ 333, 30, {33300, 1000000}, {640, 480} }, /* 29.940 fps */
-    { 333, 30, {33300, 1000000}, {352, 288} },   /* CIF */
-    { 333, 30, {33300, 1000000}, {320, 240} },   /* QVGA */
-    { 333, 30, {33300, 1000000}, {176, 144} },   /* QCIF */
+	{ 333, 30, {29940, 1000000}, {640, 480} }, /* 29.940 fps */
+    { 333, 30, {29940, 1000000}, {352, 288} },   /* CIF */
+    { 333, 30, {29940, 1000000}, {320, 240} },   /* QVGA */
+    { 333, 30, {29940, 1000000}, {176, 144} },   /* QCIF */
 
 };
 
@@ -740,18 +746,6 @@ static int s5k4cdgx_set_input_params(struct s5k4cdgx *s5k4cdgx)
 	return ret;
 }
 
-const static struct s5k4cdgx_request s5k4cdgx_snapshot_reg_config[] ={
-//Active first capture config.                                                                                                                          
-//WRITE 	#REG_TC_GP_EnableCapture  		0001 //  capture                                                                                        
-//WRITE 	#REG_TC_GP_EnableCaptureChanged		0001 //                                                                                                       
-{0x0028, 0x7000},
-{0x002A, 0x028C}, //REG_TC_GP_EnableCapture  
-{0x0F12, 0x0001},
-{0x002A, 0x028E},  //REG_TC_GP_EnableCaptureChanged
-{0x0F12, 0x0001},                                                                                                                                        
-};
-
-
 /* This function should be called when switching to new user configuration set*/
 static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 				  int cid)
@@ -760,16 +754,20 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	u16 reg = 1;
 	int ret;
 
-    //ret = s5k4cdgx_write(client, REG_TC_AF_AfCmd, 1);
-
+   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
     if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
 	if (!ret)
-		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);
+		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);		
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE, 1);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE_CHANGED, 1);
 	if (timeout == 0)
 		return ret;
+	msleep(10);
 
 	while (ret >= 0 && time_is_after_jiffies(end)) {
 		ret = s5k4cdgx_read(client, REG_G_NEW_CFG_SYNC, &reg);
@@ -826,17 +824,11 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
 
-
-	ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config, ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
-	if (ret) {
-        v4l2_err(sd, "[S5K4CDGX] %s function err in writing init reg for Gamma LUT\n", __func__);
-		return ret;
-	}
-
 	if (!ret)
-		ret = s5k4cdgx_new_config_sync(client, 50000, idx); //250
+		ret = s5k4cdgx_new_config_sync(client, 5000, idx); //250
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
+ret=0;
 	if (!ret)
 		s5k4cdgx->apply_cfg = 0;
 
@@ -1016,23 +1008,20 @@ static int __s5k4cdgx_power_on(struct s5k4cdgx *s5k4cdgx)
 	ret = regulator_bulk_enable(S5K4CDGX_NUM_SUPPLIES, s5k4cdgx->supplies);
 	if (ret)
 		return ret;
+	msleep(10);
 
 	if (s5k4cdgx_gpio_deassert(s5k4cdgx, STBY))
 		usleep_range(150, 200);
+	msleep(10);
 
 	if (s5k4cdgx->s_power)
 		ret = s5k4cdgx->s_power(1);
 	usleep_range(4000, 4000);
-	msleep(100);
+	msleep(10);
+
 	if (!s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
-		pr_err("%s: Failed to assert1 reset\n", __func__);		
-	msleep(50);
-	if (!s5k4cdgx_gpio_assert(s5k4cdgx, RST))
-		pr_err("%s: Failed to deassert reset\n", __func__);	
-	msleep(50);
-	if (!s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
-		pr_err("%s: Failed to assert2 reset\n", __func__);
-	msleep(50);
+		pr_err("%s: Failed to deassert reset\n", __func__);		
+	msleep(20);
 
 	return ret;
 }
@@ -1153,17 +1142,16 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 
 	for (i = 0; i < ARRAY_SIZE(s5k4cdgx_intervals); i++) {
 		const struct s5k4cdgx_interval *iv = &s5k4cdgx_intervals[i];
-
+		v4l2_dbg(1, debug, &s5k4cdgx->sd, "mbus width=%d, height=%d, iv[%d] width=%d, height=%d", mbus_fmt->width, mbus_fmt->height, i, iv->size.width, iv->size.height);
 		if (mbus_fmt->width > iv->size.width ||
 		    mbus_fmt->height > iv->size.height)
 			continue;
-
 		err = abs(iv->reg_fr_time - fr_time);
 		if (err < min_err) {
 			fiv = iv;
 			min_err = err;
+			v4l2_dbg(1, debug, &s5k4cdgx->sd, "set");
 		}
-		break;
 	}
 	s5k4cdgx->fiv = fiv;
 
