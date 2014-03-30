@@ -204,7 +204,7 @@ static __initdata struct tegra_clk_init_table smba_clk_init_table[] = {
 	{ "uarta",		"pll_p",		216000000,	false},		/* tegra_uart.0 uart.0 */
     { "uartb",  	"clk_m",    	 12000000,  false},		/* tegra_uart.1 uart.1 */	
 	{ "uartc",		"pll_p",		 216000000,	false},		/* tegra_uart.2 uart.2 */	
-	{ "uartd",		"clk_m",		 12000000,	false},		/* tegra_uart.3 uart.3 */
+	{ "uartd",		"pll_p",		 216000000,	false},		/* tegra_uart.3 uart.3 */
 	{ "uarte",		"clk_m",		 12000000,	false},		/* tegra_uart.4 uart.4 */
 
 	{ "disp1",  	"pll_p",    	216000000, 	false},		/* tegradc.0 */
@@ -277,7 +277,7 @@ static __initdata struct tegra_clk_init_table smba_clk_init_table[] = {
 	{ "pwm",		"clk_m",		12000000,	true},		/* tegra-pwm.0 tegra-pwm.1 tegra-pwm.2 tegra-pwm.3*/
 	{ "cdev1",		NULL,			0,		true},
 	{ "uartc",		"pll_p",		216000000,	false},    /* tegra_uart.2 uart.0 */
-	{ "uartd",              "clk_m",                12000000,      false},    /* tegra_uart.3 uart.3 */
+	{ "uartd",              "pll_p",                216000000,      false},    /* tegra_uart.3 uart.3 */
 	{ "csus",    "clk_m",          0,  false},    /* tegra_camera */
 	{ "isp",    "clk_m",    0,  false},    /* tegra_camera? */
 	{ "vi_sensor",    "pll_m",   20000000,  false},    /* tegra_camera */
