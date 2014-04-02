@@ -85,27 +85,29 @@ module_param(debug, int, 0644);
 #define  PCLK_FREQ_MIN			(24000000 / 4000)
 #define  PCLK_FREQ_MAX			(48000000 / 4000)
 #define REG_I_INIT_PARAMS_UPDATED	0x70000272
-#define REG_I_ERROR_INFO		0x70000274
+#define REG_I_ERROR_INFO		0x70000274//?
+#define REG_I_DBG_REINITCMD		0x70000532
 
 /* General purpose parameters */
-#define REG_USER_BRIGHTNESS		0x70000276
-#define REG_USER_CONTRAST		0x70000278
-#define REG_USER_SATURATION		0x7000027a
-#define REG_USER_SHARPBLUR		0x7000027c
+#define REG_USER_BRIGHTNESS		0x70000276//?
+#define REG_USER_CONTRAST		0x70000278//?
+#define REG_USER_SATURATION		0x7000027a//?
+#define REG_USER_SHARPBLUR		0x7000027c//?
 
 #define REG_G_SPEC_EFFECTS		0x70000286
 #define REG_G_ENABLE_PREV		0x70000288
 #define REG_G_ENABLE_PREV_CHG		0x7000028a
 #define REG_G_NEW_CFG_SYNC		0x70000298
-#define REG_G_PREVZOOM_IN_WIDTH		0x7000029a
-#define REG_G_PREVZOOM_IN_HEIGHT	0x7000029c
-#define REG_G_PREVZOOM_IN_XOFFS		0x7000029e
-#define REG_G_PREVZOOM_IN_YOFFS		0x700002a0
-#define REG_G_INPUTS_CHANGE_REQ		0x700002aa
+#define REG_G_PREVZOOM_IN_WIDTH		0x7000029a//?
+#define REG_G_PREVZOOM_IN_HEIGHT	0x7000029c//?
+#define REG_G_PREVZOOM_IN_XOFFS		0x7000029e//?
+#define REG_G_PREVZOOM_IN_YOFFS		0x700002a0//?
+#define REG_G_INPUTS_CHANGE_REQ		0x700002aa//?
 #define REG_G_ACTIVE_PREV_CFG		0x700002ac
+#define REG_G_ACTIVE_CAP_CFG            0x700002b4 //not used yet
 #define REG_G_PREV_CFG_CHG		0x700002ae
 #define REG_G_PREV_OPEN_AFTER_CH	0x700002b0
-#define REG_G_PREV_CFG_ERROR		0x700002b2
+#define REG_G_PREV_CFG_ERROR		0x700002b2//?
 
 #define REG_TC_AF_AFCMD				0x700002c2
 #define REG_TC_AF_AFMODE			0x700002c4
@@ -364,7 +366,7 @@ static int s5k4cdgx_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
 	ret = i2c_transfer(client->adapter, msg, 2);
 	*val = be16_to_cpu(*((u16 *)rbuf));
 
-	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x, ret=%d\n", addr, *val, ret);
+	v4l2_dbg(3, debug, client, "i2c_read: 0x%04X : 0x%04x, i2ctrans_ret: %d\n", addr, *val, ret);
 
 	return ret == 2 ? 0 : ret;
 }
@@ -770,6 +772,7 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	msleep(10);
 
 	while (ret >= 0 && time_is_after_jiffies(end)) {
+		v4l2_info(client, "Call read reg from new_config_sync");
 		ret = s5k4cdgx_read(client, REG_G_NEW_CFG_SYNC, &reg);
 		if (!reg)
 			return 0;
@@ -823,12 +826,10 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
-
 	if (!ret)
-		ret = s5k4cdgx_new_config_sync(client, 5000, idx); //250
+		ret = s5k4cdgx_new_config_sync(client, 250, idx);
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
-//ret=0;
 	if (!ret)
 		s5k4cdgx->apply_cfg = 0;
 
@@ -853,6 +854,10 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
 
 	s5k4cdgx->apply_crop = 1;
 	s5k4cdgx->apply_cfg = 1;
+
+	ret = s5k4cdgx_set_arm_go(client);
+	if (ret)
+		return ret;
 
 	ret = s5k4cdgx_set_ahb_address(client);
 	if (ret)
@@ -974,7 +979,7 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
         //v4l2_err(sd, "[S5K4CDGX] %s function err in configure_pixel_clocks\n", __func__);
 	//	return ret;
 	//}
-
+	
 	return 0;
 }
 
@@ -1146,6 +1151,7 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 		if (mbus_fmt->width > iv->size.width ||
 		    mbus_fmt->height > iv->size.height)
 			continue;
+
 		err = abs(iv->reg_fr_time - fr_time);
 		if (err < min_err) {
 			fiv = iv;
