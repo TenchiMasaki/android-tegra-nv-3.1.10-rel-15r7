@@ -754,8 +754,8 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	u16 reg = 1;
 	int ret;
 
-   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
-    if (!ret)
+//   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
+//    if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
@@ -828,7 +828,7 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 		ret = s5k4cdgx_new_config_sync(client, 5000, idx); //250
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
-ret=0;
+//ret=0;
 	if (!ret)
 		s5k4cdgx->apply_cfg = 0;
 
