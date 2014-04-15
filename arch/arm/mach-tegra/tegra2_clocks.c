@@ -1989,12 +1989,17 @@ static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
 #ifdef CONFIG_TEGRA_ENABLE_OC
     /* 1.704 GHz */
     { 12000000, 1704000000, 852, 6, 1, 12},
-    { 13000000, 1704000000, 786, 8, 1, 12}, //1049 too high
-    { 19200000, 1704000000, 710, 12, 1, 8}, //1065 too high
+    { 13000000, 1704000000, 985, 8, 1, 12}, //1049 too high
+    { 19200000, 1704000000, 1000, 12, 1, 8}, //1065 too high
     { 26000000, 1704000000, 852, 13, 1, 12},
      
+    /* 1.640 GHz */
+    { 12000000, 1640000000, 820, 6, 1, 12},
+    { 13000000, 1640000000, 985, 8, 1, 12},
+    { 19200000, 1640000000, 1000, 12, 1, 8},
+    { 26000000, 1640000000, 820, 13, 1, 12},
 #if 1
-    /* 1.6 GHz */
+	/* 1.6 GHz */
     { 12000000, 1600000000, 800, 6, 1, 12},
     { 13000000, 1600000000, 985, 8, 1, 12},
     { 19200000, 1600000000, 1000, 12, 1, 8},
@@ -2886,8 +2891,9 @@ static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
 	{ 9, 1408000 },
 	{ 10, 1504000 },
 	{ 11, 1600000 },
-	{ 12, 1704000 },
-	{ 13, CPUFREQ_TABLE_END },
+	{ 12, 1640000 },
+	{ 13, 1704000 },
+	{ 14, CPUFREQ_TABLE_END },
 };
 #endif
 
@@ -2924,7 +2930,7 @@ struct tegra_cpufreq_table_data *tegra_cpufreq_table_get(void)
 unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate)
 {
 	/* Vote on memory bus frequency based on cpu frequency */
-	if (cpu_rate > 1000000000)
+	if (cpu_rate > 1000000)
 		return 760000000;
 	else if (cpu_rate >= 816000)
 		return 600000000;	/* cpu 816 MHz, emc max */
