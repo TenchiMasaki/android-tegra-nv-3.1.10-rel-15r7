@@ -783,14 +783,14 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	u16 reg = 1;
 	int ret;
 
-//   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
-//    if (!ret)
-		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
+   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
+    if (!ret)
+		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);		
-#if 0
+#if 1
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE, 1);
 	if (!ret)
@@ -809,6 +809,41 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	}
 	return ret ? ret : -ETIMEDOUT;
 }
+
+const static struct s5k4cdgx_request s5k4cdgx_snapshot_reg_config[] ={
+{0x0028, 0x7000},
+{0x002a, 0x02b4}, 
+{0x0F12, 0x0000},  
+{0x002a, 0x0298}, 
+{0x0F12, 0x0001},  
+{0x002a, 0x02b6}, 
+{0x0F12, 0x0001},  
+{0x002a, 0x028C}, 
+{0x0F12, 0x0001},  
+{0x0F12, 0x0001}, 
+                                                                                                                                                        
+//Active first capture config.                                                                                                                          
+//WRITE	#REG_TC_GP_ActiveCapConfig 		0000 //0 // capture configuration 										
+//WRITE 	#REG_TC_GP_NewConfigSync		0001 // update configuration                                                                            
+//WRITE 	#REG_TC_GP_CapConfigChanged 		0001 													
+//WRITE 	#REG_TC_GP_EnableCapture  		0001 //  capture                                                                                        
+//WRITE 	#REG_TC_GP_EnableCaptureChanged		0001 //                                                                                                 
+      
+{0x0028, 0x7000},
+{0x002A, 0x02B4},   // capture configuration 
+{0x0F12, 0x0000},
+{0x002A, 0x0298},   // update configuration  
+{0x0F12, 0x0001},  
+{0x002A, 0x02B6},  //REG_TC_GP_CapConfigChanged    
+{0x0F12, 0x0001},
+{0x002A, 0x028C}, //REG_TC_GP_EnableCapture  
+{0x0F12, 0x0001},
+{0x002A, 0x028E},  //REG_TC_GP_EnableCaptureChanged
+{0x0F12, 0x0001},                                                                                                                                        
+
+};
+
+
 
 /**
  * s5k4cdgx_set_prev_config - write user preview register set
@@ -855,7 +890,8 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
-
+	if (!ret)
+		//ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config,ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
 	if (!ret)
 		ret = s5k4cdgx_new_config_sync(client, 5000, idx); //250
 	if (!ret)
@@ -1137,7 +1173,7 @@ static int s5k4cdgx_s_stream(struct v4l2_subdev *sd, int on)
 	int ret = 0;
 
 	mutex_lock(&s5k4cdgx->lock);
-
+	pr_info("%s: %d", __func__, on);
 	if (s5k4cdgx->streaming == !on) {
 		if (!ret && s5k4cdgx->apply_cfg)
 			ret = s5k4cdgx_set_prev_config(s5k4cdgx, s5k4cdgx->preset);

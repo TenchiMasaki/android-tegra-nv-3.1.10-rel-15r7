@@ -650,23 +650,23 @@ S5K4CDGX_DATA(0x029a),  //#REG_0TC_PCFG_usMinFrTimeMsecMult10
 // p,re0xview), configuration
 //==,==0x====),==========================================================================      
 //PR,EV0xIEW ),CONFIGURATION 1 (800 600, YUV, 30fps)  
-//S5K4CDGX_REG(0x0316),
-//S5K4CDGX_DATA(0x0320),	//#REG_2TC_PCFG_usWidth	                 800	    					
-//S5K4CDGX_DATA(0x0258),	//#REG_2TC_PCFG_usHeight                 600	
-//S5K4CDGX_DATA(0x0005),	//#REG_2TC_PCFG_Format	                 YUV	
-//S5K4CDGX_DATA(0x1388),	//#REG_2TC_PCFG_usMaxOut4KHzRate	       PCLK max
-//S5K4CDGX_DATA(0x1308),	//#REG_2TC_PCFG_usMinOut4KHzRate		     PCLK min
-//S5K4CDGX_DATA(0x0100),  //#REG_2TC_PCFG_outclkpre88
-//S5K4CDGX_DATA(0x0300),	//#REG_2TC_PCFG_ubpp88
-//S5K4CDGX_DATA(0x0042),	//#REG_2TC_PCFG_PVIMask 
-//S5K4CDGX_DATA(0x0000),  //#REG_2TC_PCFG_OIFMask
-//S5K4CDGX_DATA(0x01E0),  //#REG_2TC_PCFG_usjepg pak
-//S5K4CDGX_DATA(0xC69C),  //#REG_2TC_PCFG_usjepg total
-//S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_uClockInd         
-//S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_usFrTimeType			
-//S5K4CDGX_DATA(0x0001),	//#REG_2TC_PCFG_FrRateQualityType 1b: FR (bin) 2b: Quality (no-bin)		     
-//S5K4CDGX_DATA(0x0535),	//#REG_2TC_PCFG_usMaxFrTimeMsecMult10	  
-//S5K4CDGX_DATA(0x029a),	//#REG_2TC_PCFG_usMinFrTimeMsecMult10	
+S5K4CDGX_REG(0x0316),
+S5K4CDGX_DATA(0x0320),	//#REG_2TC_PCFG_usWidth	                 800	    					
+S5K4CDGX_DATA(0x0258),	//#REG_2TC_PCFG_usHeight                 600	
+S5K4CDGX_DATA(0x0005),	//#REG_2TC_PCFG_Format	                 YUV	
+S5K4CDGX_DATA(0x1388),	//#REG_2TC_PCFG_usMaxOut4KHzRate	       PCLK max
+S5K4CDGX_DATA(0x1308),	//#REG_2TC_PCFG_usMinOut4KHzRate		     PCLK min
+S5K4CDGX_DATA(0x0100),  //#REG_2TC_PCFG_outclkpre88
+S5K4CDGX_DATA(0x0300),	//#REG_2TC_PCFG_ubpp88
+S5K4CDGX_DATA(0x0042),	//#REG_2TC_PCFG_PVIMask 
+S5K4CDGX_DATA(0x0000),  //#REG_2TC_PCFG_OIFMask
+S5K4CDGX_DATA(0x01E0),  //#REG_2TC_PCFG_usjepg pak
+S5K4CDGX_DATA(0xC69C),  //#REG_2TC_PCFG_usjepg total
+S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_uClockInd         
+S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_usFrTimeType			
+S5K4CDGX_DATA(0x0001),	//#REG_2TC_PCFG_FrRateQualityType 1b: FR (bin) 2b: Quality (no-bin)		     
+S5K4CDGX_DATA(0x0535),	//#REG_2TC_PCFG_usMaxFrTimeMsecMult10	  
+S5K4CDGX_DATA(0x029a),	//#REG_2TC_PCFG_usMinFrTimeMsecMult10	
 //==========================================================================    
 
 //renn add start for test
