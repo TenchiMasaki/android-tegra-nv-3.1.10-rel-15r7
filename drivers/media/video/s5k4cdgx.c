@@ -35,7 +35,11 @@
 #include "s5k4cdgx_regs.h"
 
 
+<<<<<<< HEAD
 static int debug = 3;
+=======
+static int debug = 2;
+>>>>>>> 686a37c497d0a7c582bd3cfd14b3c7d8d8da96ea
 module_param(debug, int, 0644);
 
 #define DRIVER_NAME			"S5K4CDGX"
@@ -108,11 +112,14 @@ module_param(debug, int, 0644);
 #define REG_G_PREV_CFG_CHG		0x700002ae
 #define REG_G_PREV_OPEN_AFTER_CH	0x700002b0
 #define REG_G_PREV_CFG_ERROR		0x700002b2//?
+<<<<<<< HEAD
 
 #define REG_TC_AF_AFCMD				0x700002c2
 #define REG_TC_AF_AFMODE			0x700002c4
 #define REG_TC_GP_ENABLE_CAPTURE	0x7000028c
 #define REG_TC_GP_ENABLE_CAPTURE_CHANGED	0x7000028e
+=======
+>>>>>>> 686a37c497d0a7c582bd3cfd14b3c7d8d8da96ea
 
 /* Preview control section. n = 0...4. */
 #define PREG(n, x)			((n) * 0x26 + x) //??
@@ -299,6 +306,7 @@ static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
 	{ 1401, 7, {7138, 1000000}, {2048, 1536} }, /*  7.138 fps */
 	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
+<<<<<<< HEAD
 	{ 1000, 10, {10000, 1000000}, {1280, 1024} }, /* 10 fps */
 	{ 666, 15, {15000, 1000000}, {1280, 1024} }, /* 15 fps */
 	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
@@ -309,6 +317,15 @@ static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
     { 333, 30, {29940, 1000000}, {320, 240} },   /* QVGA */
     { 333, 30, {29940, 1000000}, {176, 144} },   /* QCIF */
 
+=======
+	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
+	{ 500, 20, {20000, 1000000}, {800, 600} },
+	{ 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
+	{ 333, 30, {33300, 1000000}, {640, 480} }, /* 29.940 fps */
+	{ 333, 30, {33300, 1000000}, {352, 288} },   /* CIF */
+	{ 333, 30, {33300, 1000000}, {320, 240} },   /* QVGA */
+	{ 333, 30, {33300, 1000000}, {176, 144} },   /* QCIF */
+>>>>>>> 686a37c497d0a7c582bd3cfd14b3c7d8d8da96ea
 };
 
 #define S5K4CDGX_INTERVAL_DEF_INDEX 1
@@ -456,17 +473,21 @@ static int s5k4cdgx_read(struct i2c_client *client, u32 addr, u16 *val)
 	if (!ret)
 		ret = s5k4cdgx_i2c_read(client, REG_CMDBUF0_ADDR, val);
 	if (ret)
+<<<<<<< HEAD
 		dev_err(&client->dev, "Failed to execute read command 0x%x=0x%x\n",addr, val ? *val : 0);
+=======
+		dev_err(&client->dev, "Failed to execute read command 0x%x\n",val);
+>>>>>>> 686a37c497d0a7c582bd3cfd14b3c7d8d8da96ea
 		
 	return ret;
 }
 
 static int s5k4cdgx_set_arm_go(struct i2c_client *client)
 {
-	int ret = s5k4cdgx_i2c_write(client, AHB_MSB_ADDR_PTR, GEN_REG_OFFSH);
-	if (ret < 0)
-		return ret;
-	
+        int ret = s5k4cdgx_i2c_write(client, AHB_MSB_ADDR_PTR, GEN_REG_OFFSH);
+        if (ret < 0)
+                return ret;
+
     /*
      * sw_reset is activated to put device into idle status
      */
