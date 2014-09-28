@@ -274,7 +274,7 @@
 #define TDP_SRC_ON_MS	 100
 #define TDPSRC_CON_MS	 40
 
-#define DEBUG
+/* #define DEBUG */
 
 #ifdef DEBUG
 #define DBG(stuff...)	pr_info("tegra2_usb_phy: " stuff)
@@ -1276,13 +1276,13 @@ static int uhsic_phy_bus_port_power(struct tegra_usb_phy *phy)
 		return -ETIMEDOUT;
 	}
 
-/* FIXME : need to check whether this piece is required or not */
+/* FIXME : need to check whether this piece is required or not
 	if (usb_phy_reg_status_wait(base + USB_PORTSC, USB_PORTSC_LS(2),
 						USB_PORTSC_LS(2), 2000)) {
 		pr_err("%s: timeout waiting for dplus state\n", __func__);
 		return -ETIMEDOUT;
 	}
-
+*/
 	DBG("%s(%d) end:[%d]\n", __func__, __LINE__, phy? phy->inst: 0);
 
 	return 0;
