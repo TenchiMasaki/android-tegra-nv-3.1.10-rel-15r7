@@ -12,7 +12,7 @@
  * There are run-time debug flags enabled via the debug_mask module param, or
  * via the DEFAULT_DEBUG_MASK. See xt_qtaguid_internal.h.
  */
-#define DEBUG
+/* #define DEBUG */
 
 #include <linux/file.h>
 #include <linux/inetdevice.h>
@@ -1273,7 +1273,7 @@ static void if_tag_stat_update(const char *ifname, uid_t uid,
 
 	iface_entry = get_iface_entry(ifname);
 	if (!iface_entry) {
-		pr_err("qtaguid: iface_stat: stat_update() %s not found\n",
+		MT_DEBUG("qtaguid: iface_stat: stat_update() %s not found\n",
 		       ifname);
 		return;
 	}
