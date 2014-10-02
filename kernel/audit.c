@@ -1182,6 +1182,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		audit_log_lost("backlog limit exceeded");
 		audit_backlog_wait_time = audit_backlog_wait_overflow;
 		wake_up(&audit_backlog_wait);
+		msleep(1000);
 		return NULL;
 	}
 
