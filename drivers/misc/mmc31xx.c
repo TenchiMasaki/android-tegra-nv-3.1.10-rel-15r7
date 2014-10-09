@@ -95,7 +95,7 @@ static int mmc31xx_i2c_rx_data(char *buf, int len)
 	for (i = 0; i < MMC31XX_RETRY_COUNT; i++) {
 		int ret;
 		ret = i2c_transfer(this_client->adapter, msgs, 2);
-		pr_err("%s i2c_transfer ret: %d", __FUNCTION__, ret);
+		pr_debug("%s i2c_transfer ret: %d", __FUNCTION__, ret);
 		if (ret >= 0) {
 			break;
 		}
@@ -126,7 +126,7 @@ static int mmc31xx_i2c_tx_data(char *buf, int len)
 	for (i = 0; i < MMC31XX_RETRY_COUNT; i++) {
 		int ret;
 		ret = i2c_transfer(this_client->adapter, msg, 1);
-		pr_err("%s i2c_transfer ret: %d", __FUNCTION__, ret);
+		pr_debug("%s i2c_transfer ret: %d", __FUNCTION__, ret);
 		if (ret >= 0) {
 			break;
 		}
@@ -178,7 +178,7 @@ static ssize_t mmc31xx_fs_read(struct device *dev, struct device_attribute *attr
 	vec[1] = data[2] << 8 | data[3];
 	vec[2] = data[4] << 8 | data[5];
 
-	printk(KERN_DEBUG "[X - %04x] [Y - %04x] [Z - %04x]\n", 
+	pr_debug("[X - %04x] [Y - %04x] [Z - %04x]\n", 
 		vec[0], vec[1], vec[2]);
 
 	count = sprintf(buf,"%d,%d,%d\n", vec[0], vec[1], vec[2]);
