@@ -96,12 +96,12 @@ static int	audit_nlk_pid;
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
  * audit records being dropped. */
-static int	audit_rate_limit;
+static int	audit_rate_limit = 20;
 
 /* Number of outstanding audit_buffers allowed. */
 static int	audit_backlog_limit = 64;
 static int	audit_backlog_wait_time = 60 * HZ;
-static int	audit_backlog_wait_overflow = 0;
+static int	audit_backlog_wait_overflow = 60;
 
 /* The identity of the user shutting down the audit system. */
 uid_t		audit_sig_uid = -1;
@@ -1182,7 +1182,6 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 		audit_log_lost("backlog limit exceeded");
 		audit_backlog_wait_time = audit_backlog_wait_overflow;
 		wake_up(&audit_backlog_wait);
-		msleep(1000);
 		return NULL;
 	}
 
