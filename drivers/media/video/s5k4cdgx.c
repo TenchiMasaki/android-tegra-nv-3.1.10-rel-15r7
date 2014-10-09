@@ -42,8 +42,8 @@ module_param(debug, int, 0644);
 
 /* The token to indicate array termination */
 #define S5K4CDGX_TERM			0xffffffff
-#define S5K4CDGX_OUT_WIDTH_DEF		640
-#define S5K4CDGX_OUT_HEIGHT_DEF		480
+#define S5K4CDGX_OUT_WIDTH_DEF		2948
+#define S5K4CDGX_OUT_HEIGHT_DEF		1536
 #define S5K4CDGX_WIN_WIDTH_MAX		2048
 #define S5K4CDGX_WIN_HEIGHT_MAX		1536
 #define S5K4CDGX_WIN_WIDTH_MIN		8
@@ -109,13 +109,29 @@ module_param(debug, int, 0644);
 #define REG_G_PREV_OPEN_AFTER_CH	0x700002b0
 #define REG_G_PREV_CFG_ERROR		0x700002b2//?
 
+#define CREG(n, x)					((n) * 0x30 + x) //??
+#define REG_0TC_CCFG_U_CAPTURE_MODE(n)			CREG(n, 0x700003d6)
+#define REG_0TC_CCFG_US_WIDTH(n)			CREG(n, 0x700003d8)
+#define REG_0TC_CCFG_US_HEIGHT(n)			CREG(n, 0x700003da)
+#define REG_0TC_CCFG_FORMAT(n)				CREG(n, 0x700003dc)
+#define REG_0TC_CCFG_US_MAX_OUT_4KHZ_RATE(n)		CREG(n, 0x700003de)
+#define REG_0TC_CCFG_US_MIN_OUT_4KHZ_RATE(n)		CREG(n, 0x700003e0)
+#define REG_0TC_CCFG_PVI_MASK(n)			CREG(n, 0x700003e6)
+#define REG_0TC_CCFG_U_CLOCK_IND(n)			CREG(n, 0x700003ee)
+#define REG_0TC_CCFG_US_FR_TIME_TYPE(n)			CREG(n, 0x700003f0)
+#define REG_0TC_CCFG_FR_RATE_QUALITY_TYPE(n)		CREG(n, 0x700003f2)
+#define REG_0TC_CCFG_US_MAX_FR_TIME_MSEC_MULT10(n)	CREG(n, 0x700003f4)
+#define REG_0TC_CCFG_US_MIN_FR_TIME_MSEC_MULT10(n)	CREG(n, 0x700003f6)
+
 #define REG_TC_AF_AFCMD				0x700002c2
 #define REG_TC_AF_AFMODE			0x700002c4
+#define REG_TC_GP_ACTIVE_CAP_CONFIG	0x700002b4
+#define REG_TC_GP_CAP_CONFIG_CHANGED	0x700002b6
 #define REG_TC_GP_ENABLE_CAPTURE	0x7000028c
 #define REG_TC_GP_ENABLE_CAPTURE_CHANGED	0x7000028e
 
 /* Preview control section. n = 0...4. */
-#define PREG(n, x)			((n) * 0x26 + x) //??
+#define PREG(n, x)			((n) * 0x30 + x) //??
 #define REG_P_OUT_WIDTH(n)		PREG(n, 0x700002e6)
 #define REG_P_OUT_HEIGHT(n)		PREG(n, 0x700002e8)
 #define REG_P_FMT(n)			PREG(n, 0x700002ea)
@@ -177,7 +193,7 @@ module_param(debug, int, 0644);
 #define REG_GPIO_FUNC_SEL		0xD0001090
 
 /* For now we use only one user configuration register set */
-#define S5K4CDGX_MAX_PRESETS		1
+#define S5K4CDGX_MAX_PRESETS		2
 
 static const char * const s5k4cdgx_supply_names[] = {
 	"vdd_core",	/* Digital core supply 1.5V (1.4V to 1.6V) */
@@ -285,9 +301,13 @@ static const struct s5k4cdgx_pixfmt s5k4cdgx_formats[] = {
 //	{ V4L2_MBUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
 };
 
+static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes0[] = {
+	{2048, 1536}
+};
+
 static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 	{2048, 1536},
-	{1280, 1024},
+//	{1280, 1024},
 	{1280, 720},
 	{800, 600}, /* SVGA */
 	{640, 480}, /* VGA */
@@ -296,11 +316,15 @@ static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 	{176, 144}, /* QCIF */
 };
 
+static const struct s5k4cdgx_interval s5k4cdgx_intervals0[] = {
+	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
+};
+
 static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
 	{ 1401, 7, {7138, 1000000}, {2048, 1536} }, /*  7.138 fps */
 	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
-	{ 1000, 10, {10000, 1000000}, {1280, 1024} }, /* 10 fps */
-	{ 666, 15, {15000, 1000000}, {1280, 1024} }, /* 15 fps */
+//	{ 1000, 10, {10000, 1000000}, {1280, 1024} }, /* 10 fps */
+//	{ 666, 15, {15000, 1000000}, {1280, 1024} }, /* 15 fps */
 	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
 	{ 500, 20, {20000, 1000000}, {800, 600} },
     { 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
@@ -311,7 +335,43 @@ static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
 
 };
 
+const static struct s5k4cdgx_request s5k4cdgx_snapshot_reg_config[] ={
+{0x0028, 0x7000},
+{0x002a, 0x02b4}, 
+{0x0F12, 0x0000},  
+{0x002a, 0x0298}, 
+{0x0F12, 0x0001},  
+{0x002a, 0x02b6}, 
+{0x0F12, 0x0001},  
+{0x002a, 0x028C}, 
+{0x0F12, 0x0001},  
+{0x0F12, 0x0001}, 
+                                                                                                                                                        
+//Active first capture config.                                                                                                                          
+//WRITE	#REG_TC_GP_ActiveCapConfig 		0000 //0 // capture configuration 										
+//WRITE 	#REG_TC_GP_NewConfigSync		0001 // update configuration                                                                            
+//WRITE 	#REG_TC_GP_CapConfigChanged 		0001 													
+//WRITE 	#REG_TC_GP_EnableCapture  		0001 //  capture                                                                                        
+//WRITE 	#REG_TC_GP_EnableCaptureChanged		0001 //                                                                                                 
+      
+{0x0028, 0x7000},
+{0x002A, 0x02B4},   // capture configuration 
+{0x0F12, 0x0000},
+{0x002A, 0x0298},   // update configuration  
+{0x0F12, 0x0001},  
+{0x002A, 0x02B6},  //REG_TC_GP_CapConfigChanged    
+{0x0F12, 0x0001},
+{0x002A, 0x028C}, //REG_TC_GP_EnableCapture  
+{0x0F12, 0x0001},
+{0x002A, 0x028E},  //REG_TC_GP_EnableCaptureChanged
+{0x0F12, 0x0001},                                                                                                                                        
+
+};
+
+
 #define S5K4CDGX_INTERVAL_DEF_INDEX 1
+
+int s5k4cdgx_check_fw_revision(struct s5k4cdgx *s5k4cdgx);
 
 static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 {
@@ -330,11 +390,12 @@ static void s5k4cdgx_presets_data_init(struct s5k4cdgx *s5k4cdgx)
 	int i;
 
 	for (i = 0; i < S5K4CDGX_MAX_PRESETS; i++) {
-		preset->mbus_fmt.width	= S5K4CDGX_OUT_WIDTH_DEF;
-		preset->mbus_fmt.height	= S5K4CDGX_OUT_HEIGHT_DEF;
+		preset->mbus_fmt.width	= s5k4cdgx_frame_sizes[i].width;  /* S5K4CDGX_OUT_WIDTH_DEF; */
+		preset->mbus_fmt.height	= s5k4cdgx_frame_sizes[i].height; /* S5K4CDGX_OUT_HEIGHT_DEF; */
 		preset->mbus_fmt.code	= s5k4cdgx_formats[0].code;
 		preset->index		= i;
 		preset->clk_id		= 0;
+		pr_info("%s: preview size=%dx%d\n", __func__, preset->mbus_fmt.width, preset->mbus_fmt.height);
 		preset++;
 	}
 
@@ -397,7 +458,7 @@ static int s5k4cdgx_write_regs(struct v4l2_subdev *sd,
 					struct s5k4cdgx_request table[], int size)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-        u8 buffer[2500];
+	u8 buffer[2500];
 	u8 *ptr = &buffer[2];
 	int err = 0;
 	int i = 0;
@@ -463,10 +524,10 @@ static int s5k4cdgx_read(struct i2c_client *client, u32 addr, u16 *val)
 
 static int s5k4cdgx_set_arm_go(struct i2c_client *client)
 {
-        int ret = s5k4cdgx_i2c_write(client, AHB_MSB_ADDR_PTR, GEN_REG_OFFSH);
-        if (ret < 0)
-                return ret;
-
+	int ret = s5k4cdgx_i2c_write(client, AHB_MSB_ADDR_PTR, GEN_REG_OFFSH);
+	if (ret < 0)
+		return ret;
+	
     /*
      * sw_reset is activated to put device into idle status
      */
@@ -572,9 +633,10 @@ static int s5k4cdgx_set_awb(struct s5k4cdgx *s5k4cdgx, int awb)
 	struct i2c_client *c = v4l2_get_subdevdata(&s5k4cdgx->sd);
 	struct s5k4cdgx_ctrls *ctrls = &s5k4cdgx->ctrls;
 	u16 reg;
+	int ret = 0;
 
 	v4l2_info(&s5k4cdgx->sd, "Call read reg from set_awb");
-	int ret = s5k4cdgx_read(c, REG_DBG_AUTOALG_EN, &reg);
+	ret = s5k4cdgx_read(c, REG_DBG_AUTOALG_EN, &reg);
 
 	if (!ret && !awb) {
 		ret = s5k4cdgx_write(c, REG_SF_RGAIN, ctrls->gain_red->val);
@@ -628,9 +690,10 @@ static int s5k4cdgx_set_auto_exposure(struct s5k4cdgx *s5k4cdgx, int value)
 	struct i2c_client *c = v4l2_get_subdevdata(&s5k4cdgx->sd);
 	unsigned int exp_time = s5k4cdgx->ctrls.exposure->val;
 	u16 auto_alg;
+	int ret = 0;
 
 	v4l2_info(&s5k4cdgx->sd, "Call read reg from set_auto_exposure");
-	int ret = s5k4cdgx_read(c, REG_DBG_AUTOALG_EN, &auto_alg);
+	ret = s5k4cdgx_read(c, REG_DBG_AUTOALG_EN, &auto_alg);
 	if (ret)
 		return ret;
 
@@ -709,11 +772,13 @@ static int s5k4cdgx_preview_config_status(struct i2c_client *client)
 	u16 error = 0;
 
 	ret = s5k4cdgx_write(client, REG_I_DBG_REINITCMD, 1);
+	v4l2_dbg(1, debug, client, "preview config status (%d)\n", ret);
 	if (!ret)
 	    ret = s5k4cdgx_write(client, REG_I_DBG_REINITCMD, 1);
+	v4l2_dbg(1, debug, client, "preview config status (%d)\n", ret);
 	if (!ret)
 	    ret = s5k4cdgx_write(client, REG_I_DBG_REINITCMD, 1);
-
+	v4l2_dbg(1, debug, client, "preview config status (%d)\n", ret);
 	v4l2_info(client, "Call read reg from preview_config_status");
 	ret = s5k4cdgx_read(client, REG_G_PREV_CFG_ERROR, &error);
 
@@ -740,6 +805,8 @@ static int s5k4cdgx_set_output_framefmt(struct s5k4cdgx *s5k4cdgx,
 	int fmt_index = s5k4cdgx_get_pixfmt_index(s5k4cdgx, &preset->mbus_fmt);
 	int ret;
 
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: idx=%d, width=%d, height=%d", __func__, preset->index, preset->mbus_fmt.width, preset->mbus_fmt.height);
+
 	ret = s5k4cdgx_write(client, REG_P_OUT_WIDTH(preset->index),
 			   preset->mbus_fmt.width);
 	if (!ret)
@@ -748,6 +815,18 @@ static int s5k4cdgx_set_output_framefmt(struct s5k4cdgx *s5k4cdgx,
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_FMT(preset->index),
 				   s5k4cdgx_formats[fmt_index].reg_p_fmt);
+
+
+	ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_WIDTH(0),
+			   preset->mbus_fmt.width);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_HEIGHT(0),
+				   preset->mbus_fmt.height);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_FORMAT(0),
+				   s5k4cdgx_formats[fmt_index].reg_p_fmt);
+
+
         if (!ret)
                 ret = s5k4cdgx_write(client, REG_I_INIT_PARAMS_UPDATED, 1);
 
@@ -760,6 +839,7 @@ static int s5k4cdgx_set_input_params(struct s5k4cdgx *s5k4cdgx)
 	struct v4l2_rect *r = &s5k4cdgx->ccd_rect;
 	int ret;
 
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: width=%d, height=%d, left=%d, top=%d", __func__, r->width, r->height, r->left, r->top);
 	ret = s5k4cdgx_write(c, REG_G_PREVZOOM_IN_WIDTH, r->width);
 	if (!ret)
 		ret = s5k4cdgx_write(c, REG_G_PREVZOOM_IN_HEIGHT, r->height);
@@ -783,19 +863,28 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	u16 reg = 1;
 	int ret;
 
-   	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
-    if (!ret)
+	v4l2_dbg(1, debug, client, "%s: cid=%d", __func__, cid);
+	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
+//	msleep(50);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_U_CAPTURE_MODE(0), 1);
+	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ACTIVE_PREV_CFG, cid);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_TC_GP_ACTIVE_CAP_CONFIG, 0);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_G_PREV_OPEN_AFTER_CH, 1);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
 	if (!ret)
-		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);		
-#if 1
+		ret = s5k4cdgx_write(client, REG_TC_GP_CAP_CONFIG_CHANGED, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE_CHANGED, 1);
-#endif
+
 	if (timeout == 0)
 		return ret;
 	msleep(10);
@@ -803,46 +892,16 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 	while (ret >= 0 && time_is_after_jiffies(end)) {
 		v4l2_info(client, "Call read reg from new_config_sync");
 		ret = s5k4cdgx_read(client, REG_G_NEW_CFG_SYNC, &reg);
-		if (!reg)
+		if (!reg) {
+			v4l2_dbg(1, debug, client, "%s: !reg", __func__);
 			return 0;
+		}
 		usleep_range(1000, 5000);
 	}
+	v4l2_dbg(1, debug, client, "%s: timed out (%d)", __func__, ret);
+
 	return ret ? ret : -ETIMEDOUT;
 }
-
-const static struct s5k4cdgx_request s5k4cdgx_snapshot_reg_config[] ={
-{0x0028, 0x7000},
-{0x002a, 0x02b4}, 
-{0x0F12, 0x0000},  
-{0x002a, 0x0298}, 
-{0x0F12, 0x0001},  
-{0x002a, 0x02b6}, 
-{0x0F12, 0x0001},  
-{0x002a, 0x028C}, 
-{0x0F12, 0x0001},  
-{0x0F12, 0x0001}, 
-                                                                                                                                                        
-//Active first capture config.                                                                                                                          
-//WRITE	#REG_TC_GP_ActiveCapConfig 		0000 //0 // capture configuration 										
-//WRITE 	#REG_TC_GP_NewConfigSync		0001 // update configuration                                                                            
-//WRITE 	#REG_TC_GP_CapConfigChanged 		0001 													
-//WRITE 	#REG_TC_GP_EnableCapture  		0001 //  capture                                                                                        
-//WRITE 	#REG_TC_GP_EnableCaptureChanged		0001 //                                                                                                 
-      
-{0x0028, 0x7000},
-{0x002A, 0x02B4},   // capture configuration 
-{0x0F12, 0x0000},
-{0x002A, 0x0298},   // update configuration  
-{0x0F12, 0x0001},  
-{0x002A, 0x02B6},  //REG_TC_GP_CapConfigChanged    
-{0x0F12, 0x0001},
-{0x002A, 0x028C}, //REG_TC_GP_EnableCapture  
-{0x0F12, 0x0001},
-{0x002A, 0x028E},  //REG_TC_GP_EnableCaptureChanged
-{0x0F12, 0x0001},                                                                                                                                        
-
-};
-
 
 
 /**
@@ -866,37 +925,87 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 		frame_rate_q = FR_RATE_Q_BEST_QUALITY;
 
 	ret = s5k4cdgx_set_output_framefmt(s5k4cdgx, preset);
+	v4l2_dbg(1, debug, client, "s5k4cdgx_set_output_framefmt: %d (%d)\n", preset, ret);
 	if (!ret)
-        ret = s5k4cdgx_write(client, REG_P_PVI_MASK(idx),
+		ret = s5k4cdgx_write(client, REG_P_PVI_MASK(idx),
 					0x42);
+	v4l2_dbg(1, debug, client, "REG_P_PVI_MASK (%d)\n", ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MAX_OUT_RATE(idx),
 				   s5k4cdgx->pclk_fmax);
+	v4l2_dbg(1, debug, client, "REG_P_MAX_OUT_RATE: %d (%d)\n", s5k4cdgx->pclk_fmax, ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_OUT_RATE(idx),
 				   s5k4cdgx->pclk_fmin);
+	v4l2_dbg(1, debug, client, "REG_P_MIN_OUT_RATE: %d (%d)\n", s5k4cdgx->pclk_fmin, ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_CLK_INDEX(idx),
 				   preset->clk_id);
+	v4l2_dbg(1, debug, client, "REG_P_CLK_INDEX: %d (%d)\n", preset->clk_id, ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_FR_RATE_TYPE(idx),
 				   FR_RATE_DYNAMIC);
+	v4l2_dbg(1, debug, client, "REG_P_FR_RATE_TYPE (%d)\n", ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_FR_RATE_Q_TYPE(idx),
 				   frame_rate_q);
+	v4l2_dbg(1, debug, client, "REG_P_FR_RATE_Q_TYPE: %d (%d)\n", frame_rate_q, ret);
+
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MAX_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time + 33);
+	v4l2_dbg(1, debug, client, "REG_P_MAX_FR_TIME: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time + 33, ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
+	v4l2_dbg(1, debug, client, "REG_P_MIN_FR_TIMEL: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time - 33, ret);
+
+
+ 	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_PVI_MASK(0),
+					0x42);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_PVI_MASK (%d)\n", ret);
 	if (!ret)
-		//ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config,ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_MAX_OUT_4KHZ_RATE(0),
+				   s5k4cdgx->pclk_fmax);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_MAX_OUT_4KHZ_RATE: %d (%d)\n", s5k4cdgx->pclk_fmax, ret);
 	if (!ret)
-		ret = s5k4cdgx_new_config_sync(client, 5000, idx); //250
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_MIN_OUT_4KHZ_RATE(0),
+				   s5k4cdgx->pclk_fmin);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_MIN_OUT_4KHZ_RATE: %d (%d)\n", s5k4cdgx->pclk_fmin, ret);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_U_CLOCK_IND(0),
+				   preset->clk_id);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_U_CLOCK_IND: %d (%d)\n", preset->clk_id, ret);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_FR_TIME_TYPE(0),
+				   FR_RATE_DYNAMIC);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_FR_TIME_TYPE (%d)\n", ret);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_FR_RATE_QUALITY_TYPE(0),
+				   frame_rate_q);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_FR_RATE_QUALITY_TYPE: %d (%d)\n", frame_rate_q, ret);
+
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_MAX_FR_TIME_MSEC_MULT10(0),
+				   s5k4cdgx->fiv->reg_fr_time + 33);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_MAX_FR_TIME_MSEC_MULT10: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time + 33, ret);
+	if (!ret)
+		ret = s5k4cdgx_write(client, REG_0TC_CCFG_US_MIN_FR_TIME_MSEC_MULT10(0),
+				   s5k4cdgx->fiv->reg_fr_time - 33);
+	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_MIN_FR_TIME_MSEC_MULT10: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time - 33, ret);
+	
+
+
+	
+	if (!ret)
+//		ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config,ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
+	if (!ret)
+		ret = s5k4cdgx_new_config_sync(client, 5000, idx);
+	v4l2_dbg(1, debug, client, "s5k4cdgx_new_config_sync: %d (%d)\n", idx, ret);
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
-//ret=0;
+	v4l2_dbg(1, debug, client, "s5k4cdgx_preview_config_status (%d)\n", ret);
 	if (!ret)
 		s5k4cdgx->apply_cfg = 0;
 
@@ -919,6 +1028,7 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
 	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
 	int ret;
 
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: start", __func__);
 	s5k4cdgx->apply_crop = 1;
 	s5k4cdgx->apply_cfg = 1;
 
@@ -1047,6 +1157,8 @@ static int s5k4cdgx_initialize_isp(struct v4l2_subdev *sd)
 	//	return ret;
 	//}
 
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: end", __func__);
+
 	return 0;
 }
 
@@ -1083,17 +1195,36 @@ static int __s5k4cdgx_power_on(struct s5k4cdgx *s5k4cdgx)
 	msleep(10);
 
 	if (s5k4cdgx_gpio_deassert(s5k4cdgx, STBY))
-		usleep_range(150, 200);
-	msleep(10);
+		msleep(5);
+
+	if (s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		msleep(5);
 
 	if (s5k4cdgx->s_power)
 		ret = s5k4cdgx->s_power(1);
-	usleep_range(4000, 4000);
 	msleep(10);
 
-	if (!s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
-		pr_err("%s: Failed to deassert reset\n", __func__);		
-	msleep(20);
+	if (s5k4cdgx_gpio_assert(s5k4cdgx, STBY))
+		usleep_range(150, 200);
+	msleep(10);
+
+	if (s5k4cdgx_gpio_assert(s5k4cdgx, RST))
+		msleep(5);
+
+	if (s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		msleep(5);
+		
+	if (s5k4cdgx_gpio_assert(s5k4cdgx, RST))
+		msleep(5);
+
+	if (s5k4cdgx_gpio_deassert(s5k4cdgx, STBY))
+		msleep(5);
+
+	if (s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		msleep(5);
+
+	ret = s5k4cdgx_check_fw_revision(s5k4cdgx);
+	msleep(10);
 
 	return ret;
 }
@@ -1107,14 +1238,15 @@ static int __s5k4cdgx_power_off(struct s5k4cdgx *s5k4cdgx)
 	  return -EINVAL;
 	}
 
-	if (s5k4cdgx_gpio_assert(s5k4cdgx, RST))
-		usleep_range(100, 150);
-
 	if (s5k4cdgx->s_power) {
 		ret = s5k4cdgx->s_power(0);
 		if (ret)
 			return ret;
 	}
+
+	if (s5k4cdgx_gpio_deassert(s5k4cdgx, RST))
+		usleep_range(5000, 10000);
+
 	if (s5k4cdgx_gpio_assert(s5k4cdgx, STBY))
 		usleep_range(50, 100);
 	s5k4cdgx->streaming = 0;
@@ -1158,7 +1290,8 @@ static int __s5k4cdgx_stream(struct s5k4cdgx *s5k4cdgx, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(&s5k4cdgx->sd);
 	int ret = 0;
 
-	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, enable);
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: enable=%d", __func__, enable);
+	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, 0);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV_CHG, 1);
 	if (!ret)
@@ -1172,6 +1305,7 @@ static int s5k4cdgx_s_stream(struct v4l2_subdev *sd, int on)
 	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
 	int ret = 0;
 
+	v4l2_dbg(1, debug, sd, "%s: on=%d", __func__, on);
 	mutex_lock(&s5k4cdgx->lock);
 	pr_info("%s: %d", __func__, on);
 	if (s5k4cdgx->streaming == !on) {
@@ -1211,6 +1345,7 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 		return -EINVAL;
 
 	fr_time = f->numerator * 10000 / f->denominator;
+	pr_info("%s: fr_time=%d", __func__, fr_time);
 
 	for (i = 0; i < ARRAY_SIZE(s5k4cdgx_intervals); i++) {
 		const struct s5k4cdgx_interval *iv = &s5k4cdgx_intervals[i];
@@ -1238,11 +1373,11 @@ static int s5k4cdgx_s_frame_interval(struct v4l2_subdev *sd,
 	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "Setting %d/%d frame interval\n",
+	v4l2_dbg(1, debug, sd, "S-Setting %d/%d frame interval\n",
 		 fi->interval.numerator, fi->interval.denominator);
 
 	mutex_lock(&s5k4cdgx->lock);
-	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, &fi->interval);
+	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, &fi->interval); // comment out?
 	s5k4cdgx->apply_cfg = 1;
 
 	mutex_unlock(&s5k4cdgx->lock);
@@ -1343,7 +1478,9 @@ static int s5k4cdgx_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms
 		return -EINVAL;
 
 	mutex_lock(&s5k4cdgx->lock);
-	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, tpf);
+	v4l2_dbg(1, debug, sd, "G-Setting %d/%d frame interval\n",
+		 tpf->numerator, tpf->denominator);
+	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, tpf); // comment out?
 	mutex_unlock(&s5k4cdgx->lock);
 
 	return ret;
@@ -1439,7 +1576,7 @@ static int s5k4cdgx_video_set_fmt(struct v4l2_subdev *sd,
 	if (s5k4cdgx->streaming) {
 		ret = -EBUSY;
 	} else {
-		struct v4l2_fract fr = {0, 1};
+		struct v4l2_fract fr = {1, 15};
 
 		s5k4cdgx->apply_cfg = 1;
 		pr_info("%s: setting format: %dx%d code=%x\n", __func__, mf->width, mf->height, mf->code);
@@ -1476,6 +1613,7 @@ static int s5k4cdgx_pad_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *f
 	struct v4l2_rect *crop;
 	int ret = 0;
 
+	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: start", __func__);
 	mutex_lock(&s5k4cdgx->lock);
 	s5k4cdgx_try_format(s5k4cdgx, &fmt->format);
 
@@ -1493,7 +1631,7 @@ static int s5k4cdgx_pad_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *f
 	}
 
 	if (ret == 0) {
-		struct v4l2_fract fr = {0, 1};
+		struct v4l2_fract fr = {1, 15};
 
 		*mf = fmt->format;
 		/*
@@ -1509,7 +1647,7 @@ static int s5k4cdgx_pad_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *f
 				     S5K4CDGX_WIN_WIDTH_MAX - crop->width);
 		crop->top  = clamp_t(unsigned int, crop->top, 0,
 				     S5K4CDGX_WIN_HEIGHT_MAX - crop->height);
-
+		v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: crop->width=%d, crop->height=%d, crop->left=%d, crop->top=%d", __func__, crop->width, crop->height, crop->left, crop->top);
 		/* Reset to minimum possible frame interval */
 		ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, &fr);
 	}
