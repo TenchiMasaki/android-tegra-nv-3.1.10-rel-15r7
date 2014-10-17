@@ -370,6 +370,24 @@ static struct tegra_nand_chip_parms smba_nand_chip_parms[] = {
 			.trp_resp	= 30,
 			.tadl		= 100,
         },
+	},
+	/* Hynix HY27UF084G2B (readid 4th byte 0x95) */
+	[18] = {
+		.vendor_id	= 0xAD,
+		.device_id	= 0xDC,
+		.capacity	= 512,
+		.timing		= {
+			.trp		= 12,
+			.trh		= 10,
+			.twp		= 12,
+			.twh		= 10,
+			.tcs		= 20,
+			.twhr		= 80,
+			.tcr_tar_trr	= 20,
+			.twb		= 100,
+			.trp_resp	= 20,
+			.tadl		= 70,
+        },
      },
 };
 
