@@ -42,7 +42,7 @@ module_param(debug, int, 0644);
 
 /* The token to indicate array termination */
 #define S5K4CDGX_TERM			0xffffffff
-#define S5K4CDGX_OUT_WIDTH_DEF		2948
+#define S5K4CDGX_OUT_WIDTH_DEF		2048
 #define S5K4CDGX_OUT_HEIGHT_DEF		1536
 #define S5K4CDGX_WIN_WIDTH_MAX		2048
 #define S5K4CDGX_WIN_HEIGHT_MAX		1536
@@ -193,7 +193,7 @@ module_param(debug, int, 0644);
 #define REG_GPIO_FUNC_SEL		0xD0001090
 
 /* For now we use only one user configuration register set */
-#define S5K4CDGX_MAX_PRESETS		2
+#define S5K4CDGX_MAX_PRESETS		7
 
 static const char * const s5k4cdgx_supply_names[] = {
 	"vdd_core",	/* Digital core supply 1.5V (1.4V to 1.6V) */
@@ -301,10 +301,6 @@ static const struct s5k4cdgx_pixfmt s5k4cdgx_formats[] = {
 //	{ V4L2_MBUS_FMT_RGB565_2X8_BE,	V4L2_COLORSPACE_JPEG,	0 },
 };
 
-static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes0[] = {
-	{2048, 1536}
-};
-
 static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 	{2048, 1536},
 //	{1280, 1024},
@@ -316,18 +312,14 @@ static const struct v4l2_frmsize_discrete s5k4cdgx_frame_sizes[] = {
 	{176, 144}, /* QCIF */
 };
 
-static const struct s5k4cdgx_interval s5k4cdgx_intervals0[] = {
-	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
-};
-
 static const struct s5k4cdgx_interval s5k4cdgx_intervals[] = {
-	{ 1401, 7, {7138, 1000000}, {2048, 1536} }, /*  7.138 fps */
+//	{ 1401, 7, {7138, 1000000}, {2048, 1536} }, /*  7.138 fps */
 	{ 666, 15, {15015, 1000000}, {2048, 1536} }, /* 15.015 fps */
 //	{ 1000, 10, {10000, 1000000}, {1280, 1024} }, /* 10 fps */
 //	{ 666, 15, {15000, 1000000}, {1280, 1024} }, /* 15 fps */
 	{ 500, 20, {20000, 1000000}, {1280, 720} },  /* 20 fps, HD720 */
 	{ 500, 20, {20000, 1000000}, {800, 600} },
-    { 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
+//    { 400, 25, {25000, 1000000}, {640, 480} },   /* 25 fps */
 	{ 333, 30, {29940, 1000000}, {640, 480} }, /* 29.940 fps */
     { 333, 30, {29940, 1000000}, {352, 288} },   /* CIF */
     { 333, 30, {29940, 1000000}, {320, 240} },   /* QVGA */
@@ -400,7 +392,7 @@ static void s5k4cdgx_presets_data_init(struct s5k4cdgx *s5k4cdgx)
 	}
 
 	s5k4cdgx->fiv = &s5k4cdgx_intervals[S5K4CDGX_INTERVAL_DEF_INDEX];
-	s5k4cdgx->preset = &s5k4cdgx->presets[0];
+	s5k4cdgx->preset = &s5k4cdgx->presets[1];
 }
 
 static int s5k4cdgx_i2c_read(struct i2c_client *client, u16 addr, u16 *val)
@@ -624,6 +616,8 @@ static int s5k4cdgx_set_mirror(struct s5k4cdgx *s5k4cdgx, int horiz_flip)
 	unsigned int vflip = s5k4cdgx->ctrls.vflip->val ^ s5k4cdgx->inv_vflip;
 	unsigned int flip = (horiz_flip ^ s5k4cdgx->inv_hflip) | (vflip << 1);
 
+	v4l2_info(&s5k4cdgx->sd, "%s: horiz_flip=%d vflip=%d flip=%d", __func__, horiz_flip, vflip, flip);
+
 	return s5k4cdgx_write(client, REG_P_PREV_MIRROR(index), flip);
 }
 
@@ -780,6 +774,9 @@ static int s5k4cdgx_preview_config_status(struct i2c_client *client)
 	    ret = s5k4cdgx_write(client, REG_I_DBG_REINITCMD, 1);
 	v4l2_dbg(1, debug, client, "preview config status (%d)\n", ret);
 	v4l2_info(client, "Call read reg from preview_config_status");
+	
+	msleep(250);
+	
 	ret = s5k4cdgx_read(client, REG_G_PREV_CFG_ERROR, &error);
 
 	v4l2_dbg(1, debug, client, "preview config status error: 0x%x (%d)\n", error, ret);
@@ -925,7 +922,7 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 		frame_rate_q = FR_RATE_Q_BEST_QUALITY;
 
 	ret = s5k4cdgx_set_output_framefmt(s5k4cdgx, preset);
-	v4l2_dbg(1, debug, client, "s5k4cdgx_set_output_framefmt: %d (%d)\n", preset, ret);
+	v4l2_dbg(1, debug, client, "s5k4cdgx_set_output_framefmt: %d (%d)\n", preset->index, ret);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_PVI_MASK(idx),
 					0x42);
@@ -958,7 +955,7 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_P_MIN_FR_TIME(idx),
 				   s5k4cdgx->fiv->reg_fr_time - 33);
-	v4l2_dbg(1, debug, client, "REG_P_MIN_FR_TIMEL: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time - 33, ret);
+	v4l2_dbg(1, debug, client, "REG_P_MIN_FR_TIME: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time - 33, ret);
 
 
  	if (!ret)
@@ -1291,7 +1288,7 @@ static int __s5k4cdgx_stream(struct s5k4cdgx *s5k4cdgx, int enable)
 	int ret = 0;
 
 	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: enable=%d", __func__, enable);
-	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, 0);
+	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, enable);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV_CHG, 1);
 	if (!ret)
@@ -1330,6 +1327,9 @@ static int s5k4cdgx_g_frame_interval(struct v4l2_subdev *sd,
 	fi->interval = s5k4cdgx->fiv->interval;
 	mutex_unlock(&s5k4cdgx->lock);
 
+	v4l2_dbg(1, debug, sd, "%s: %d/%d\n",
+		 __func__, fi->interval.numerator, fi->interval.denominator);
+
 	return 0;
 }
 
@@ -1354,7 +1354,7 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 		    mbus_fmt->height > iv->size.height)
 			continue;
 		err = abs(iv->reg_fr_time - fr_time);
-		if (err < min_err) {
+		if (1) { //err < min_err) {
 			fiv = iv;
 			min_err = err;
 			v4l2_dbg(1, debug, &s5k4cdgx->sd, "set");
@@ -1373,8 +1373,8 @@ static int s5k4cdgx_s_frame_interval(struct v4l2_subdev *sd,
 	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
 	int ret;
 
-	v4l2_dbg(1, debug, sd, "S-Setting %d/%d frame interval\n",
-		 fi->interval.numerator, fi->interval.denominator);
+	v4l2_dbg(1, debug, sd, "%s: %d/%d\n",
+		 __func__, fi->interval.numerator, fi->interval.denominator);
 
 	mutex_lock(&s5k4cdgx->lock);
 	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, &fi->interval); // comment out?
@@ -1410,7 +1410,8 @@ static int s5k4cdgx_enum_frame_interval(struct v4l2_subdev *sd,
 	fie->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fie->discrete.numerator = 1;
 	fie->discrete.denominator = s5k4cdgx_intervals[i].fr_rate;
-
+	v4l2_dbg(1, debug, sd, "%s: %d/%d\n",
+		 __func__, fie->discrete.numerator, fie->discrete.denominator);
 	return ret;
 }
 
@@ -1422,6 +1423,9 @@ static int s5k4cdgx_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	code->code = s5k4cdgx_formats[code->index].code;
+	v4l2_dbg(1, debug, sd, "%s: %d\n",
+		__func__, code->code);
+
 	return 0;
 }
 
@@ -1432,6 +1436,9 @@ static int s5k4cdgx_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned int index,
 		return -EINVAL;
 
 	*code = s5k4cdgx_formats[index].code;
+	v4l2_dbg(1, debug, sd, "%s: %d\n",
+		 __func__, *code);
+
 	return 0;
 }
 
@@ -1443,7 +1450,8 @@ static int s5k4cdgx_enum_frame_size(struct v4l2_subdev *sd,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fsize->discrete = s5k4cdgx_frame_sizes[fsize->index];
-
+	v4l2_dbg(1, debug, sd, "%s: %dx%d\n",
+		 __func__, fsize->discrete.width, fsize->discrete.height);
 	return 0;
 }
 
@@ -1461,7 +1469,9 @@ static int s5k4cdgx_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms
 	mutex_lock(&s5k4cdgx->lock);
 	cp->timeperframe = s5k4cdgx->fiv->interval;
 	mutex_unlock(&s5k4cdgx->lock);
-
+	v4l2_dbg(1, debug, sd, "%s: %d/%d\n",
+		 __func__, cp->timeperframe.numerator, cp->timeperframe.denominator);
+		 
 	return 0;
 }
 
@@ -1478,8 +1488,8 @@ static int s5k4cdgx_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms
 		return -EINVAL;
 
 	mutex_lock(&s5k4cdgx->lock);
-	v4l2_dbg(1, debug, sd, "G-Setting %d/%d frame interval\n",
-		 tpf->numerator, tpf->denominator);
+	v4l2_dbg(1, debug, sd, "%s: %d/%d frame interval\n",
+		 __func__, tpf->numerator, tpf->denominator);
 	ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, tpf); // comment out?
 	mutex_unlock(&s5k4cdgx->lock);
 
@@ -1517,6 +1527,7 @@ static void s5k4cdgx_try_format(struct s5k4cdgx *s5k4cdgx,
 	mf->colorspace	= s5k4cdgx_formats[index].colorspace;
 	mf->code	= s5k4cdgx_formats[index].code;
 	mf->field	= V4L2_FIELD_NONE;
+	
 }
 
 static int s5k4cdgx_video_try_fmt(struct v4l2_subdev *sd,
@@ -1576,7 +1587,7 @@ static int s5k4cdgx_video_set_fmt(struct v4l2_subdev *sd,
 	if (s5k4cdgx->streaming) {
 		ret = -EBUSY;
 	} else {
-		struct v4l2_fract fr = {1, 15};
+		struct v4l2_fract fr = {0, 1};
 
 		s5k4cdgx->apply_cfg = 1;
 		pr_info("%s: setting format: %dx%d code=%x\n", __func__, mf->width, mf->height, mf->code);
@@ -1595,6 +1606,9 @@ static int s5k4cdgx_video_set_fmt(struct v4l2_subdev *sd,
 				     S5K4CDGX_WIN_WIDTH_MAX - crop->width);
 		crop->top  = clamp_t(unsigned int, crop->top, 0,
 				     S5K4CDGX_WIN_HEIGHT_MAX - crop->height);
+
+		v4l2_dbg(1, debug, sd, "%s: (%d,%d)/%dx%d\n",
+			 __func__, crop->left, crop->top, crop->width, crop->height);
 
 		/* Reset to minimum possible frame interval */
 		ret = __s5k4cdgx_set_frame_interval(s5k4cdgx, &fr);
@@ -1631,7 +1645,7 @@ static int s5k4cdgx_pad_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *f
 	}
 
 	if (ret == 0) {
-		struct v4l2_fract fr = {1, 15};
+		struct v4l2_fract fr = {0, 1};
 
 		*mf = fmt->format;
 		/*
