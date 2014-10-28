@@ -28,6 +28,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
 #include <media/s5k4cdgx.h>
@@ -109,6 +110,8 @@ module_param(debug, int, 0644);
 #define REG_G_PREV_OPEN_AFTER_CH	0x700002b0
 #define REG_G_PREV_CFG_ERROR		0x700002b2//?
 
+#define REG_HOME_POS_X				0x70000f30
+#define REG_HOME_POS_Y				0x70000f32
 #define CREG(n, x)					((n) * 0x30 + x) //??
 #define REG_0TC_CCFG_U_CAPTURE_MODE(n)			CREG(n, 0x700003d6)
 #define REG_0TC_CCFG_US_WIDTH(n)			CREG(n, 0x700003d8)
@@ -157,8 +160,7 @@ module_param(debug, int, 0644);
 /* The below 5 registers are for "device correction" values */
 #define REG_P_COLORTEMP(n)		PREG(n, 0x7000030c) //?
 #define REG_P_PREV_MIRROR(n)		PREG(n, 0x70000310)
-#define REG_P_CAP_MIRROR(n)		PREG(n, 0x70000312) //not used yet
-
+#define REG_P_CAP_MIRROR(n)		PREG(n, 0x70000312)
 /* Extended image property controls */
 /* Exposure time in 10 us units */
 #define REG_SF_USR_EXPOSURE_L		0x700004f0//?
@@ -291,6 +293,7 @@ struct s5k4cdgx {
 	unsigned int apply_cfg:1;
 	unsigned int apply_crop:1;
 	unsigned int power;
+	unsigned int cap_mode;
 };
 
 /* TODO: Add RGB888 and Bayer format */
@@ -387,7 +390,6 @@ static void s5k4cdgx_presets_data_init(struct s5k4cdgx *s5k4cdgx)
 		preset->mbus_fmt.code	= s5k4cdgx_formats[0].code;
 		preset->index		= i;
 		preset->clk_id		= 0;
-		pr_info("%s: preview size=%dx%d\n", __func__, preset->mbus_fmt.width, preset->mbus_fmt.height);
 		preset++;
 	}
 
@@ -608,17 +610,21 @@ static int s5k4cdgx_configure_pixel_clocks(struct s5k4cdgx *s5k4cdgx)
 }
 
 /* Set horizontal and vertical image flipping */
-static int s5k4cdgx_set_mirror(struct s5k4cdgx *s5k4cdgx, int horiz_flip)
+static int s5k4cdgx_set_mirror(struct s5k4cdgx *s5k4cdgx, int horiz_flip, int vert_flip)
 {
+	int ret = 0;
 	struct i2c_client *client = v4l2_get_subdevdata(&s5k4cdgx->sd);
 	int index = s5k4cdgx->preset->index;
 
-	unsigned int vflip = s5k4cdgx->ctrls.vflip->val ^ s5k4cdgx->inv_vflip;
+	unsigned int vflip = vert_flip ^ s5k4cdgx->inv_vflip;
 	unsigned int flip = (horiz_flip ^ s5k4cdgx->inv_hflip) | (vflip << 1);
 
 	v4l2_info(&s5k4cdgx->sd, "%s: horiz_flip=%d vflip=%d flip=%d", __func__, horiz_flip, vflip, flip);
-
-	return s5k4cdgx_write(client, REG_P_PREV_MIRROR(index), flip);
+	ret = s5k4cdgx_write(client, REG_P_PREV_MIRROR(index), flip);
+	if (ret)
+		return ret;
+	ret = s5k4cdgx_write(client, REG_P_CAP_MIRROR(0), flip);
+	return ret;
 }
 
 /* Configure auto/manual white balance and R/G/B gains */
@@ -853,16 +859,27 @@ static int s5k4cdgx_set_input_params(struct s5k4cdgx *s5k4cdgx)
 }
 
 /* This function should be called when switching to new user configuration set*/
-static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
+static int s5k4cdgx_new_config_sync(struct s5k4cdgx *s5k4cdgx, int timeout,
 				  int cid)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&s5k4cdgx->sd);
 	unsigned long end = jiffies + msecs_to_jiffies(timeout);
 	u16 reg = 1;
 	int ret;
 
 	v4l2_dbg(1, debug, client, "%s: cid=%d", __func__, cid);
-	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 1);
-//	msleep(50);
+
+	if(!ret)
+		ret = s5k4cdgx_write(client, REG_HOME_POS_X, 0);
+	if(!ret)
+		ret = s5k4cdgx_write(client, REG_HOME_POS_Y, 0);
+	
+	ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 3);
+	msleep(150);
+	if(!ret)
+		ret = s5k4cdgx_write(client, REG_TC_AF_AFCMD, 6);
+	msleep(50);
+	
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_0TC_CCFG_U_CAPTURE_MODE(0), 1);
 	if (!ret)
@@ -875,10 +892,13 @@ static int s5k4cdgx_new_config_sync(struct i2c_client *client, int timeout,
 		ret = s5k4cdgx_write(client, REG_G_NEW_CFG_SYNC, 1);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
+
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_TC_GP_CAP_CONFIG_CHANGED, 1);
+
 	if (!ret)
-		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE, 1);
+		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE,
+		s5k4cdgx->cap_mode == CAP_MODE_PICTURE || s5k4cdgx->fiv->size.width >= 1280);
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_TC_GP_ENABLE_CAPTURE_CHANGED, 1);
 
@@ -992,13 +1012,10 @@ static int s5k4cdgx_set_prev_config(struct s5k4cdgx *s5k4cdgx,
 				   s5k4cdgx->fiv->reg_fr_time - 33);
 	v4l2_dbg(1, debug, client, "REG_0TC_CCFG_US_MIN_FR_TIME_MSEC_MULT10: %d (%d)\n", s5k4cdgx->fiv->reg_fr_time - 33, ret);
 	
-
-
-	
 	if (!ret)
 //		ret = s5k4cdgx_write_regs(sd, s5k4cdgx_snapshot_reg_config,ARRAY_SIZE(s5k4cdgx_snapshot_reg_config));
 	if (!ret)
-		ret = s5k4cdgx_new_config_sync(client, 5000, idx);
+		ret = s5k4cdgx_new_config_sync(s5k4cdgx, 5000, idx);
 	v4l2_dbg(1, debug, client, "s5k4cdgx_new_config_sync: %d (%d)\n", idx, ret);
 	if (!ret)
 		ret = s5k4cdgx_preview_config_status(client);
@@ -1288,7 +1305,7 @@ static int __s5k4cdgx_stream(struct s5k4cdgx *s5k4cdgx, int enable)
 	int ret = 0;
 
 	v4l2_dbg(1, debug, &s5k4cdgx->sd, "%s: enable=%d", __func__, enable);
-	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, enable);
+	ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV, enable && (s5k4cdgx->cap_mode == CAP_MODE_PREVIEW));
 	if (!ret)
 		ret = s5k4cdgx_write(client, REG_G_ENABLE_PREV_CHG, 1);
 	if (!ret)
@@ -1354,7 +1371,7 @@ static int __s5k4cdgx_set_frame_interval(struct s5k4cdgx *s5k4cdgx,
 		    mbus_fmt->height > iv->size.height)
 			continue;
 		err = abs(iv->reg_fr_time - fr_time);
-		if (1) { //err < min_err) {
+		if (err < min_err) {
 			fiv = iv;
 			min_err = err;
 			v4l2_dbg(1, debug, &s5k4cdgx->sd, "set");
@@ -1410,7 +1427,7 @@ static int s5k4cdgx_enum_frame_interval(struct v4l2_subdev *sd,
 	fie->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 	fie->discrete.numerator = 1;
 	fie->discrete.denominator = s5k4cdgx_intervals[i].fr_rate;
-	v4l2_dbg(1, debug, sd, "%s: %d/%d\n",
+	v4l2_dbg(3, debug, sd, "%s: %d/%d\n",
 		 __func__, fie->discrete.numerator, fie->discrete.denominator);
 	return ret;
 }
@@ -1450,7 +1467,7 @@ static int s5k4cdgx_enum_frame_size(struct v4l2_subdev *sd,
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fsize->discrete = s5k4cdgx_frame_sizes[fsize->index];
-	v4l2_dbg(1, debug, sd, "%s: %dx%d\n",
+	v4l2_dbg(3, debug, sd, "%s: %dx%d\n",
 		 __func__, fsize->discrete.width, fsize->discrete.height);
 	return 0;
 }
@@ -1590,6 +1607,9 @@ static int s5k4cdgx_video_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_fract fr = {0, 1};
 
 		s5k4cdgx->apply_cfg = 1;
+		
+//		mf->width = 2048;
+//		mf->height = 1536;
 		pr_info("%s: setting format: %dx%d code=%x\n", __func__, mf->width, mf->height, mf->code);
 		preset->mbus_fmt = *mf;
 
@@ -1752,6 +1772,31 @@ static const struct v4l2_subdev_video_ops s5k4cdgx_video_ops = {
 	.g_parm = s5k4cdgx_g_parm,
 };
 
+static int s5k4cdgx_ioctl_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
+	int err = 0;
+	
+	v4l2_dbg(1, debug, sd, "ioctl cmd: 0x%x value: %d\n", ctrl->id, ctrl->value);
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		v4l2_dbg(1, debug, sd, "ioctl cmd vflip");
+		err = s5k4cdgx_set_mirror(s5k4cdgx, 0, ctrl->value);
+		if (err)
+			break;
+		err = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
+		break;
+	case V4L2_CID_CAP_MODE:
+		v4l2_dbg(1, debug, sd, "ioctl cmd capmode");
+		s5k4cdgx->cap_mode = ctrl->value;
+		break;
+	}
+
+	return err;
+}
+
 /*
  * V4L2 subdev controls
  */
@@ -1797,7 +1842,7 @@ static int s5k4cdgx_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_HFLIP:
-		err = s5k4cdgx_set_mirror(s5k4cdgx, ctrl->val);
+		err = s5k4cdgx_set_mirror(s5k4cdgx, ctrl->val, 0);
 		if (err)
 			break;
 		err = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
@@ -2032,6 +2077,7 @@ static const struct v4l2_subdev_internal_ops s5k4cdgx_subdev_internal_ops = {
 static const struct v4l2_subdev_core_ops s5k4cdgx_core_ops = {
 	.s_power = s5k4cdgx_set_power,
 	.log_status = s5k4cdgx_log_status,
+	.s_ctrl = s5k4cdgx_ioctl_s_ctrl,
 };
 
 static const struct v4l2_subdev_ops s5k4cdgx_subdev_ops = {
@@ -2226,24 +2272,6 @@ out_err1:
 	return ret;
 }
 
-static int s5k4cdgx_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
-
-	v4l2_dbg(3, debug, client, "suspend power off");
-	s5k4cdgx_set_power(sd, 0);
-	return 0;
-}
-static int s5k4cdgx_resume(struct i2c_client *client)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct s5k4cdgx *s5k4cdgx = to_s5k4cdgx(sd);
-
-	v4l2_dbg(3, debug, client, "resume");
-	return 0;
-}
-
 static int s5k4cdgx_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -2272,8 +2300,6 @@ static struct i2c_driver s5k4cdgx_i2c_driver = {
 	},
 	.probe		= s5k4cdgx_probe,
 	.remove		= s5k4cdgx_remove,
-	.suspend	= s5k4cdgx_suspend,
-	.resume		= s5k4cdgx_resume,
 	.id_table	= s5k4cdgx_id,
 };
 

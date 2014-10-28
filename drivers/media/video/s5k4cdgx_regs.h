@@ -644,7 +644,7 @@ S5K4CDGX_DATA(0xC69C),  //#REG_0TC_PCFG_usjepg total
 S5K4CDGX_DATA(0x0000),  //#REG_0TC_PCFG_uClockInd
 S5K4CDGX_DATA(0x0000),  //#REG_0TC_PCFG_usFrTimeType
 S5K4CDGX_DATA(0x0001),  //#REG_0TC_PCFG_FrRateQualityType 1b: FR (bin) 2b: Quality (no-bin)
-S5K4CDGX_DATA(0x0535),  //#REG_0TC_PCFG_usMaxFrTimeMsecMult10
+S5K4CDGX_DATA(0x2710),  //#REG_0TC_PCFG_usMaxFrTimeMsecMult10
 S5K4CDGX_DATA(0x0270),  //#REG_0TC_PCFG_usMinFrTimeMsecMult10
 //==,==0x====),==========================================================================                                 
 // p,re0xview), configuration
@@ -665,7 +665,7 @@ S5K4CDGX_DATA(0xC69C),  //#REG_2TC_PCFG_usjepg total
 S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_uClockInd         
 S5K4CDGX_DATA(0x0000),	//#REG_2TC_PCFG_usFrTimeType			
 S5K4CDGX_DATA(0x0001),	//#REG_2TC_PCFG_FrRateQualityType 1b: FR (bin) 2b: Quality (no-bin)		     
-S5K4CDGX_DATA(0x0535),	//#REG_2TC_PCFG_usMaxFrTimeMsecMult10	  
+S5K4CDGX_DATA(0x2710),	//#REG_2TC_PCFG_usMaxFrTimeMsecMult10	  
 S5K4CDGX_DATA(0x0270),	//#REG_2TC_PCFG_usMinFrTimeMsecMult10	
 //==========================================================================    
 
@@ -698,7 +698,7 @@ S5K4CDGX_DATA(0x0002),	 //#REG_0TC_CCFG_FrRateQualityType	          1b: FR (bin)
 S5K4CDGX_REG(0x03F0),
 S5K4CDGX_DATA(0x0000),	// #REG_0TC_CCFG_usFrTimeType
 S5K4CDGX_REG(0x03F4),
-S5K4CDGX_DATA(0x1200),	//#REG_0TC_CCFG_usMaxFrTimeMsecMult10: 30 fps(0x014D)  25fps(0x0190)  20fps(0x01F4) 15fps(0x029A)  10fps(0x03E8)  7.5fps(0x0535)  4.0fps(0x09C4)
+S5K4CDGX_DATA(0x2710),	//#REG_0TC_CCFG_usMaxFrTimeMsecMult10: 30 fps(0x014D)  25fps(0x0190)  20fps(0x01F4) 15fps(0x029A)  10fps(0x03E8)  7.5fps(0x0535)  4.0fps(0x09C4)
 S5K4CDGX_DATA(0x0000),	//#REG_0TC_CCFG_usMinFrTimeMsecMult10
 };
 
