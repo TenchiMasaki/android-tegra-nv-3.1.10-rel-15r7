@@ -1787,6 +1787,10 @@ static int s5k4cdgx_ioctl_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ct
 		if (err)
 			break;
 		err = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
+		if (err)
+			break;
+		err = s5k4cdgx_write(client, REG_TC_GP_CAP_CONFIG_CHANGED, 1);
+		
 		break;
 	case V4L2_CID_CAP_MODE:
 		v4l2_dbg(1, debug, sd, "ioctl cmd capmode");
