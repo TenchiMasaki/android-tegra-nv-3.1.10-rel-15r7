@@ -1844,14 +1844,14 @@ static int s5k4cdgx_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_AUTO:
 		err = s5k4cdgx_set_auto_exposure(s5k4cdgx, ctrl->val);
 		break;
-
+/*
 	case V4L2_CID_HFLIP:
 		err = s5k4cdgx_set_mirror(s5k4cdgx, ctrl->val, 0);
 		if (err)
 			break;
 		err = s5k4cdgx_write(client, REG_G_PREV_CFG_CHG, 1);
 		break;
-
+*/
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 		err = s5k4cdgx_set_anti_flicker(s5k4cdgx, ctrl->val);
 		break;
