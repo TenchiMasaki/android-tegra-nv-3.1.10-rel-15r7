@@ -253,7 +253,7 @@ static struct tegra_fb_data smba_hdmi_fb_data = {
 	.xres    	 = 1920,
 	.yres		 = 1080,
 	.bits_per_pixel  = 32,
-//  .flags    = TEGRA_FB_FLIP_ON_PROBE, NEEDED?
+	.flags    = TEGRA_FB_FLIP_ON_PROBE,
 };
 
 #else
@@ -262,7 +262,7 @@ static struct tegra_fb_data smba_hdmi_fb_data = {
 	.xres		= 1280,
 	.yres		= 720,
 	.bits_per_pixel	= 32,
-//	.flags		= TEGRA_FB_FLIP_ON_PROBE, NEEDED?
+	.flags		= TEGRA_FB_FLIP_ON_PROBE,
 };
 #endif
 
@@ -274,8 +274,8 @@ static struct tegra_dc_out smba_disp1_out = {
 	.depth		= 18,
 	.dither		= TEGRA_DC_ORDERED_DITHER,
 
-//	.height         = 136, /* mm */ NEEDED?
-//	.width          = 217, /* mm */ NEEDED?
+	.height         = 136, /* mm */
+	.width          = 217, /* mm */
 
 	.modes		= smba_panel_modes,
 	.n_modes	= ARRAY_SIZE(smba_panel_modes),
