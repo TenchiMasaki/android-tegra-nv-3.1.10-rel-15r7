@@ -19,7 +19,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-
+#define DEBUG 1
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
@@ -369,8 +369,9 @@ static void restore_cpu_complex(u32 mode)
 	int cpu = smp_processor_id();
 	unsigned int reg, policy;
 
+    pr_debug("%s: 0", __func__);
 	BUG_ON(cpu != 0);
-
+    pr_debug("%s: 1", __func__);
 	/* Is CPU complex already running on PLLX? */
 	reg = readl(clk_rst + CLK_RESET_CCLK_BURST);
 	policy = (reg >> CLK_RESET_CCLK_BURST_POLICY_SHIFT) & 0xF;
@@ -381,7 +382,7 @@ static void restore_cpu_complex(u32 mode)
 		reg = (reg >> CLK_RESET_CCLK_RUN_POLICY_SHIFT) & 0xF;
 	else
 		BUG();
-
+    pr_debug("%s: 2", __func__);
 	if (reg != CLK_RESET_CCLK_BURST_POLICY_PLLX) {
 		/* restore PLLX settings if CPU is on different PLL */
 		writel(tegra_sctx.pllx_misc, clk_rst + CLK_RESET_PLLX_MISC);
@@ -414,7 +415,7 @@ static void restore_cpu_complex(u32 mode)
 		writel(tegra_sctx.cpu_burst, clk_rst +
 		       CLK_RESET_CCLK_BURST);
 	}
-
+    pr_debug("%s: 3", __func__);
 	writel(tegra_sctx.clk_csite_src, clk_rst + CLK_RESET_SOURCE_CSITE);
 
 	/* Do not power-gate CPU 0 when flow controlled */
@@ -450,9 +451,9 @@ static void suspend_cpu_complex(u32 mode)
 	int cpu = smp_processor_id();
 	unsigned int reg;
 	int i;
-
+pr_debug("%s: 0", __func__);
 	BUG_ON(cpu != 0);
-
+pr_debug("%s: 1", __func__);
 	/* switch coresite to clk_m, save off original source */
 	tegra_sctx.clk_csite_src = readl(clk_rst + CLK_RESET_SOURCE_CSITE);
 	writel(3<<30, clk_rst + CLK_RESET_SOURCE_CSITE);
@@ -554,6 +555,7 @@ static void tegra_sleep_core(enum tegra_suspend_mode mode,
 				   tegra_cpu_reset_handler_offset));
 	}
 #endif
+    pr_debug("%s: 0", __func__);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	tegra2_sleep_core(v2p);
 #else
@@ -657,7 +659,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 static int tegra_common_suspend(void)
 {
 	void __iomem *mc = IO_ADDRESS(TEGRA_MC_BASE);
-
+    pr_debug("%s: 0", __func__);
 	tegra_sctx.mc[0] = readl(mc + MC_SECURITY_START);
 	tegra_sctx.mc[1] = readl(mc + MC_SECURITY_SIZE);
 	tegra_sctx.mc[2] = readl(mc + MC_SECURITY_CFG2);
@@ -675,7 +677,7 @@ static void tegra_common_resume(void)
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	void __iomem *emc = IO_ADDRESS(TEGRA_EMC_BASE);
 #endif
-
+    pr_debug("%s: 0", __func__);
 	/* Clear DPD sample */
 	writel(0x0, pmc + PMC_DPD_SAMPLE);
 
@@ -704,6 +706,7 @@ static int tegra_suspend_prepare_late(void)
 
 static void tegra_suspend_wake(void)
 {
+    pr_debug("%s: 0", __func__);
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	enable_irq(INT_SYS_STATS_MON);
 #endif
@@ -781,7 +784,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 	int ret;
 	ktime_t delta;
 	struct timespec ts_entry, ts_exit;
-
+    pr_debug("%s: 0", __func__);
 	if (pdata && pdata->board_suspend)
 		pdata->board_suspend(current_suspend_mode, TEGRA_SUSPEND_BEFORE_PERIPHERAL);
 
@@ -828,7 +831,7 @@ static void tegra_suspend_check_pwr_stats(void)
 		(1 << TEGRA_POWERGATE_MPE);
 
 	int partid;
-
+    pr_debug("%s: 0", __func__);
 	for (partid = 0; partid < TEGRA_NUM_POWERGATE; partid++)
 		if ((1 << partid) & pwrgate_partid_mask)
 			if (tegra_powergate_is_powered(partid))
@@ -843,9 +846,11 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 	int err = 0;
 	u32 scratch37 = 0xDEADBEEF;
 
+    pr_debug("%s: 0", __func__);
 	if (WARN_ON(mode <= TEGRA_SUSPEND_NONE ||
 		mode >= TEGRA_MAX_SUSPEND_MODE)) {
 		err = -ENXIO;
+        pr_debug("%s: -1", __func__);
 		goto fail;
 	}
 
@@ -947,7 +952,7 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 	local_fiq_enable();
 
 	tegra_common_resume();
-
+    pr_debug("%s: 1", __func__);
 fail:
 	return err;
 }
@@ -967,6 +972,7 @@ static int tegra_suspend_prepare(void)
 
 static void tegra_suspend_finish(void)
 {
+    pr_debug("%s: 0", __func__);
 	if (pdata && pdata->cpu_resume_boost) {
 		int ret = tegra_suspended_target(pdata->cpu_resume_boost);
 		pr_info("Tegra: resume CPU boost to %u KHz: %s (%d)\n",
@@ -1006,7 +1012,7 @@ static ssize_t suspend_mode_store(struct kobject *kobj,
 	int len;
 	const char *name_ptr;
 	enum tegra_suspend_mode new_mode;
-
+    pr_debug("%s: 0", __func__);
 	name_ptr = buf;
 	while (*name_ptr && !isspace(*name_ptr))
 		name_ptr++;
@@ -1246,7 +1252,7 @@ static int tegra_debug_uart_suspend(void)
 {
 	void __iomem *uart;
 	u32 lcr;
-
+    pr_debug("%s: 0", __func__);
 	if (!debug_uart_port_base)
 		return 0;
 
@@ -1277,7 +1283,7 @@ static void tegra_debug_uart_resume(void)
 {
 	void __iomem *uart;
 	u32 lcr;
-
+    pr_debug("%s: 0", __func__);
 	if (!debug_uart_port_base)
 		return;
 
@@ -1335,6 +1341,7 @@ arch_initcall(tegra_debug_uart_syscore_init);
 static struct clk *clk_wake;
 static void pm_early_suspend(struct early_suspend *h)
 {
+    pr_debug("%s: clk_wake: %d", __func__, clk_wake);
 	if (clk_wake)
 		clk_disable(clk_wake);
 	pm_qos_update_request(&awake_cpu_freq_req, PM_QOS_DEFAULT_VALUE);
@@ -1342,6 +1349,7 @@ static void pm_early_suspend(struct early_suspend *h)
 
 static void pm_late_resume(struct early_suspend *h)
 {
+    pr_debug("%s: clk_wake: %d", __func__, clk_wake);
 	if (clk_wake)
 		clk_enable(clk_wake);
 	pm_qos_update_request(&awake_cpu_freq_req, (s32)AWAKE_CPU_FREQ_MIN);

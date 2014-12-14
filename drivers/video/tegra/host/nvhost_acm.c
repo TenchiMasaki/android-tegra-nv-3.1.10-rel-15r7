@@ -425,7 +425,7 @@ int nvhost_module_suspend(struct nvhost_device *dev)
 	if (ret == 0) {
 		dev_info(&dev->dev, "%s prevented suspend\n",
 				dev->name);
-		return -EBUSY;
+		//return -EBUSY;
 	}
 
 	mutex_lock(&dev->lock);
