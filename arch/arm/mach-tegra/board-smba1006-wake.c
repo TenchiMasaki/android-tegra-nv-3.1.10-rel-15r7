@@ -57,8 +57,12 @@ DECLARE_DELAYED_WORK(do_shutdown, smba_wake_force_shutdown);
 static void smba_wake_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	code = code;
-	printk(KERN_DEBUG "wake_event type: %d, code: %d", type, code);
-	if(type == EV_KEY  && code == KEY_POWER) {
+	printk(KERN_DEBUG "wake_event type: %d, code: %d, value: %d", type, code, value);
+	if (!type && !code && value) {
+		printk(KERN_DEBUG "wake_event do_wake");
+	    schedule_work(&do_wake);
+	}
+	else if(type == EV_KEY  && code == KEY_POWER) {
 	  	printk(KERN_DEBUG "wake_event == value: %d", value);
 	  if(!!value) {
 	    // button pressed; cancel TPS sleep mode

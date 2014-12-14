@@ -425,7 +425,7 @@ int nvhost_module_suspend(struct nvhost_device *dev)
 	if (ret == 0) {
 		dev_info(&dev->dev, "%s prevented suspend\n",
 				dev->name);
-		//return -EBUSY;
+		return -EBUSY;
 	}
 
 	mutex_lock(&dev->lock);
@@ -443,13 +443,13 @@ void nvhost_module_deinit(struct nvhost_device *dev)
 {
 	int i;
 	struct nvhost_driver *drv = to_nvhost_driver(dev->dev.driver);
+	pr_info("nvhost_module_deinit");
+    if (nvhost_module_suspend(dev) == 0) {
+		if (drv->deinit)
+			drv->deinit(dev);
 
-	if (drv->deinit)
-		drv->deinit(dev);
-
-	nvhost_module_suspend(dev);
-	for (i = 0; i < dev->num_clks; i++)
-		clk_put(dev->clk[i]);
-	dev->powerstate = NVHOST_POWER_STATE_DEINIT;
+		for (i = 0; i < dev->num_clks; i++)
+			clk_put(dev->clk[i]);
+		dev->powerstate = NVHOST_POWER_STATE_DEINIT;
+	}
 }
-
