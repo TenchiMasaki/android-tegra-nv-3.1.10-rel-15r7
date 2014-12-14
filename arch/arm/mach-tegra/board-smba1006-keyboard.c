@@ -13,6 +13,7 @@
  *
  */
 
+#define DEBUG 1
 #include <linux/platform_device.h>
 #include <linux/input.h>
 
@@ -39,7 +40,7 @@ static struct gpio_keys_button smba_keys[] = {
 		.gpio = SMBA1006_KEY_VOLUMEUP,
 		.active_low = true,
 		.debounce_interval = 10,
-		.wakeup = false,		
+		.wakeup = true,		
 		.code = KEY_VOLUMEUP,
 		.type = EV_KEY,		
 		.desc = "volume up",
@@ -48,7 +49,7 @@ static struct gpio_keys_button smba_keys[] = {
 		.gpio = SMBA1006_KEY_VOLUMEDOWN,
 		.active_low = true,
 		.debounce_interval = 10,
-		.wakeup = false,		
+		.wakeup = true,		
 		.code = KEY_VOLUMEDOWN,
 		.type = EV_KEY,		
 		.desc = "volume down",
@@ -79,9 +80,9 @@ static int smba_wakeup_key(void)
 {
 	unsigned long status =
 		readl(IO_ADDRESS(TEGRA_PMC_BASE) + PMC_WAKE_STATUS);
+ 	printk(KERN_DEBUG "wakeup_key: %d", status);
 
-	return (status & SMBA1006_WAKE_KEY_BACK) ?
-		KEY_POWER : KEY_RESERVED;	
+	return KEY_POWER;
 }
 
 static struct gpio_keys_platform_data smba_keys_platform_data = {

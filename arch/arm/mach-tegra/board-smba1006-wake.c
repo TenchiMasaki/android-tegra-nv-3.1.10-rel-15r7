@@ -26,6 +26,7 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define DEBUG 1
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -56,13 +57,17 @@ DECLARE_DELAYED_WORK(do_shutdown, smba_wake_force_shutdown);
 static void smba_wake_event(struct input_handle *handle, unsigned int type, unsigned int code, int value)
 {
 	code = code;
-	if(type == EV_KEY && (code == KEY_POWER || code == KEY_BACK)) {
+	printk(KERN_DEBUG "wake_event type: %d, code: %d", type, code);
+	if(type == EV_KEY  && (code == KEY_POWER || code == KEY_VOLUMEDOWN)) {
+	  	printk(KERN_DEBUG "wake_event == value: %d", value);
 	  if(!!value) {
 	    // button pressed; cancel TPS sleep mode
+	  	printk(KERN_DEBUG "wake_event do_wake");
 	    schedule_work(&do_wake);
 	    // ... and schedule shutdown if button remains pressed
 	     schedule_delayed_work(&do_shutdown, 5*HZ);
 	  } else {
+	  	printk(KERN_DEBUG "wake_event cancel shutdown");
 	    // button is not longer pressed; cancel shutdown
 	    cancel_delayed_work(&do_shutdown);
 	  }
