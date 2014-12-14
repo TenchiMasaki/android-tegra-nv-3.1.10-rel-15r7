@@ -14,6 +14,7 @@
  *
  */
 
+#define DEBUG 1
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -26,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
+#include <linux/earlysuspend.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -101,6 +103,15 @@ static struct platform_device tegra_camera_power_device = {
   .id     = 0,
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+/* put early_suspend/late_resume handlers here for the display in order
+ * to keep the code out of the display driver, keeping it closer to upstream
+ */
+struct early_suspend camera_early_suspender;
+
+#endif
+
+
 /* In theory we might want to use this callback to reference the 
    tegra_camera driver from the soc_camera host driver instead of
    the i2c client driver */
@@ -118,6 +129,19 @@ static void smba_disable_camera(struct nvhost_device *ndev)
 	dev_dbg(&ndev->dev, "%s\n", __func__);
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void camera_early_suspend(struct early_suspend *h)
+{
+	pr_debug("%s\n", __func__);
+	smba_s5k4cdgx_set_power(0);
+}
+
+static void camera_late_resume(struct early_suspend *h)
+{
+	pr_debug("%s\n", __func__);
+}
+#endif
+
 static struct tegra_camera_platform_data smba_camera_pdata = {
   .enable_camera = &smba_enable_camera,
   .disable_camera = &smba_disable_camera,
@@ -128,6 +152,13 @@ static struct tegra_camera_platform_data smba_camera_pdata = {
 int __init smba_camera_register_devices(void)
 {
   int ret;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	camera_early_suspender.suspend = camera_early_suspend;
+	camera_early_suspender.resume = camera_late_resume;
+	camera_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	register_early_suspend(&camera_early_suspender);
+#endif
 
   tegra_camera_device.dev.platform_data = &smba_camera_pdata;
 
