@@ -284,8 +284,8 @@ static void suspend(struct work_struct *work)
 
 	pr_info("Expire wake_locks");
 	expire_wake_locks(0);
-	msleep(500);
-
+	msleep(5000);
+ 
 	entry_event_num = current_event_num;
 	sys_sync();
 	if (debug_mask & DEBUG_SUSPEND)
