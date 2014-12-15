@@ -419,7 +419,7 @@ int nvhost_module_suspend(struct nvhost_device *dev)
 {
 	int ret;
 	struct nvhost_driver *drv = to_nvhost_driver(dev->dev.driver);
-
+	nvhost_module_idle_mult(dev, dev->refcount);
 	ret = wait_event_timeout(dev->idle_wq, is_module_idle(dev),
 			ACM_SUSPEND_WAIT_FOR_IDLE_TIMEOUT);
 	if (ret == 0) {
