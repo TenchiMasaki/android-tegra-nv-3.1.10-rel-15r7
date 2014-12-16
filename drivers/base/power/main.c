@@ -47,6 +47,7 @@ LIST_HEAD(dpm_prepared_list);
 LIST_HEAD(dpm_suspended_list);
 LIST_HEAD(dpm_noirq_list);
 
+struct suspend_stats suspend_stats;
 static DEFINE_MUTEX(dpm_list_mtx);
 static pm_message_t pm_transition;
 
@@ -500,6 +501,7 @@ static int legacy_resume(struct device *dev, int (*cb)(struct device *dev))
 
 	initcall_debug_report(dev, calltime, error);
 
+ Out:
 	return error;
 }
 
@@ -571,6 +573,7 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 
  Unlock:
 	device_unlock(dev);
+ Complete:
 	complete_all(&dev->power.completion);
 
 	TRACE_RESUME(error);
