@@ -42,6 +42,7 @@ static void late_resume(struct work_struct *work);
 static DECLARE_WORK(early_suspend_work, early_suspend);
 static DECLARE_WORK(late_resume_work, late_resume);
 static DEFINE_SPINLOCK(state_lock);
+int pm_autosleep_set_state(suspend_state_t state);
 enum {
 	SUSPEND_REQUESTED = 0x1,
 	SUSPENDED = 0x2,
@@ -174,7 +175,7 @@ void request_suspend_state(suspend_state_t new_state)
 		pr_info("request_suspend_state: %s (%d->%d) at %lld "
 			"(%d-%02d-%02d %02d:%02d:%02d.%09lu UTC)\n",
 			new_state != PM_SUSPEND_ON ? "sleep" : "wakeup",
-			requested_suspend_state, new_state,
+			pm_autosleep_state(), new_state,
 			ktime_to_ns(ktime_get()),
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec);
@@ -187,11 +188,11 @@ void request_suspend_state(suspend_state_t new_state)
 		wake_lock(&main_wake_lock);
 		queue_work(suspend_work_queue, &late_resume_work);
 	}
-	requested_suspend_state = new_state;
+	pm_autosleep_set_state(new_state);
 	spin_unlock_irqrestore(&state_lock, irqflags);
 }
 
 suspend_state_t get_suspend_state(void)
 {
-	return requested_suspend_state;
+	return pm_autosleep_state();
 }

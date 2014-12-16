@@ -195,7 +195,7 @@ void thaw_processes(void)
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		/* No other threads should have PF_SUSPEND_TASK set */
-		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
+		//WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
 		__thaw_task(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
