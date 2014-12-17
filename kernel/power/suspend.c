@@ -350,7 +350,7 @@ int enter_state(suspend_state_t state)
 		freeze_begin();
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	sys_sync();
+	//sys_sync();
 	printk("done.\n");
 
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
