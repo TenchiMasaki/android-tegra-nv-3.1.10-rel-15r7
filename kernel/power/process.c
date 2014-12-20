@@ -64,9 +64,10 @@ static int try_to_freeze_tasks(bool user_only)
 			break;
 
 		if (pm_wakeup_pending()) {
-			pm_get_active_wakeup_sources(suspend_abort,
+			/*pm_get_active_wakeup_sources(suspend_abort,
 				MAX_SUSPEND_ABORT_LEN);
-			log_suspend_abort_reason(suspend_abort);
+			log_suspend_abort_reason(suspend_abort);*/
+			pr_info("suspend abort");
 			wakeup = true;
 			break;
 		}
@@ -194,7 +195,7 @@ void thaw_processes(void)
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		/* No other threads should have PF_SUSPEND_TASK set */
-		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
+		//WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
 		__thaw_task(p);
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
