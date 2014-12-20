@@ -1,30 +1,9 @@
-
-static inline void device_pm_init_common(struct device *dev)
-{
-	if (!dev->power.early_init) {
-		spin_lock_init(&dev->power.lock);
-		dev->power.qos = NULL;
-		dev->power.early_init = true;
-	}
-}
-
 #ifdef CONFIG_PM_RUNTIME
-
-static inline void pm_runtime_early_init(struct device *dev)
-{
-	dev->power.disable_depth = 1;
-	device_pm_init_common(dev);
-}
 
 extern void pm_runtime_init(struct device *dev);
 extern void pm_runtime_remove(struct device *dev);
 
 #else /* !CONFIG_PM_RUNTIME */
-
-static inline void pm_runtime_early_init(struct device *dev)
-{
-	device_pm_init_common(dev);
-}
 
 static inline void pm_runtime_init(struct device *dev) {}
 static inline void pm_runtime_remove(struct device *dev) {}
@@ -44,7 +23,7 @@ static inline struct device *to_device(struct list_head *entry)
 	return container_of(entry, struct device, power.entry);
 }
 
-extern void device_pm_sleep_init(struct device *dev);
+extern void device_pm_init(struct device *dev);
 extern void device_pm_add(struct device *);
 extern void device_pm_remove(struct device *);
 extern void device_pm_move_before(struct device *, struct device *);
@@ -53,9 +32,11 @@ extern void device_pm_move_last(struct device *);
 
 #else /* !CONFIG_PM_SLEEP */
 
-static inline void device_pm_sleep_init(struct device *dev) {}
-
-static inline void device_pm_add(struct device *dev) {}
+static inline void device_pm_init(struct device *dev)
+{
+	spin_lock_init(&dev->power.lock);
+	pm_runtime_init(dev);
+}
 
 static inline void device_pm_remove(struct device *dev)
 {
@@ -69,13 +50,6 @@ static inline void device_pm_move_after(struct device *deva,
 static inline void device_pm_move_last(struct device *dev) {}
 
 #endif /* !CONFIG_PM_SLEEP */
-
-static inline void device_pm_init(struct device *dev)
-{
-	device_pm_init_common(dev);
-	device_pm_sleep_init(dev);
-	pm_runtime_init(dev);
-}
 
 #ifdef CONFIG_PM
 
