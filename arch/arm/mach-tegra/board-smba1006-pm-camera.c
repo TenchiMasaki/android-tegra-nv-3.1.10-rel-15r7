@@ -78,7 +78,7 @@ static int smba_s5k4cdgx_power_on(void)
 	}
 	
 	/* Prevent suspend when camera on so that suspend doesn't freeze on wakeup when camer is on */
-	if (&lock.ws == NULL)
+	if (lock.name == NULL)
 		wake_lock_init(&lock, WAKE_LOCK_SUSPEND, "pm-camera");
 	wake_lock(&lock);
 	tegra_camera_enable(dev);
