@@ -82,21 +82,7 @@ int call_usermodehelper_exec(struct subprocess_info *info, enum umh_wait wait);
 
 /* Free the subprocess_info. This is only needed if you're not going
    to call call_usermodehelper_exec */
-
-enum umh_disable_depth {
-	UMH_ENABLED = 0,
-	UMH_FREEZING,
-	UMH_DISABLED,
-};
-
 void call_usermodehelper_freeinfo(struct subprocess_info *info);
-extern int __usermodehelper_disable(enum umh_disable_depth depth);
-extern void __usermodehelper_set_disable_depth(enum umh_disable_depth depth);
-static inline int usermodehelper_disable(void)
-{
-	return __usermodehelper_disable(UMH_DISABLED);
-}
-
 
 static inline int
 call_usermodehelper_fns(char *path, char **argv, char **envp,
