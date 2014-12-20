@@ -86,8 +86,8 @@
 #define SMBA1006_MEM_BANKS		2
 
 #define SMBA1006_GPU_MEM_SIZE  		(SZ_1M*128)		/* Memory reserved for GPU */
-#define SMBA1006_FB1_MEM_SIZE 		SZ_32M		/* Memory reserved for Framebuffer 1: LCD <-- Is this actually the size of the framebuffer?*/
-#define SMBA1006_FB2_MEM_SIZE 		SZ_32M		/* Memory reserved for Framebuffer 2: HDMI out <-- Is this actually the size of the framebuffer?*/
+#define SMBA1006_FB1_MEM_SIZE 		SZ_8M		/* Memory reserved for Framebuffer 1: LCD <-- Is this actually the size of the framebuffer?*/
+#define SMBA1006_FB2_MEM_SIZE 		SZ_16M		/* Memory reserved for Framebuffer 2: HDMI out <-- Is this actually the size of the framebuffer?*/
 #define SMBA1006_TOTAL_GPU_MEM_SIZE (SMBA1006_GPU_MEM_SIZE+SMBA1006_FB1_MEM_SIZE+SMBA1006_FB2_MEM_SIZE)
 //#define SMBA1006_1920x1080HDMI //Define this for 1080p output
 
