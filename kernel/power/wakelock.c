@@ -270,21 +270,6 @@ static void suspend_backoff(void)
 			  msecs_to_jiffies(SUSPEND_BACKOFF_INTERVAL));
 }
 
-static void unlock_all()
-{
-	struct wake_lock *lock;
-
-	list_for_each_entry(lock, &active_wake_locks[WAKE_LOCK_SUSPEND], link) {
-		pr_info("unlocking wake lock %s\n", lock->name);
-		wake_unlock(lock);
-	}
-
-	list_for_each_entry(lock, &active_wake_locks[WAKE_LOCK_IDLE], link) {
-		pr_info("unlocking wake lock %s\n", lock->name);
-		wake_unlock(lock);
-	}
-}
-
 static void suspend(struct work_struct *work)
 {
 	int ret;
@@ -297,7 +282,8 @@ static void suspend(struct work_struct *work)
 		return;
 	}
 
-	unlock_all();
+	pr_info("Expire wake_locks");
+	expire_wake_locks(0);
 	msleep(5000);
  
 	entry_event_num = current_event_num;
