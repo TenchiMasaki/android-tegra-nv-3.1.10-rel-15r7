@@ -7,6 +7,7 @@
  *
  * This file is released under the GPLv2.
  */
+
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -284,7 +285,7 @@ int enter_state(suspend_state_t state)
 		return -EBUSY;
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	//sys_sync();
+	sys_sync();
 	printk("done.\n");
 
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
