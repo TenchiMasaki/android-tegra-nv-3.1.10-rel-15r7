@@ -97,6 +97,29 @@ static struct platform_device smba_tegra_s5k4cdgx_device = {
   },
 };
 
+static void camera_suspend(struct device *dev, pm_message_t state)
+{
+	pr_debug("%s\n", __func__);
+	smba_s5k4cdgx_set_power(0);
+}
+
+static int __devinit camera_probe(struct platform_device *pdev) {
+	return 0;
+}
+
+static int __devexit camera_remove(struct platform_device *pdev) {
+	return 0;
+}
+
+static struct platform_driver tegra_camera_power_device_driver = {
+	.probe		= camera_probe,
+	.remove		= camera_remove,
+	.driver		= {
+		.name	= "camera_power"
+	},
+    .suspend = camera_suspend,
+};
+
 static struct platform_device tegra_camera_power_device = {
   // note the underscore
   .name   = "tegra_camera",
@@ -159,6 +182,8 @@ int __init smba_camera_register_devices(void)
 	camera_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
 	register_early_suspend(&camera_early_suspender);
 #endif
+
+  platform_driver_register(&tegra_camera_power_device_driver);
 
   tegra_camera_device.dev.platform_data = &smba_camera_pdata;
 
