@@ -35,8 +35,8 @@
 
 
 #define DRIVER_NAME			"at168_touch"
-#define TS_POLL_DELAY			2 /* ms delay between samples */
-#define TS_POLL_PERIOD			2 /* ms delay between samples */
+#define TS_POLL_DELAY			1 /* ms delay between samples */
+#define TS_POLL_PERIOD			1 /* ms delay between samples */
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void at168_early_suspend(struct early_suspend *h);
@@ -73,9 +73,9 @@ static void at168_reset(struct at168_data *touch)
 		return;
 
 	gpio_set_value(touch->gpio_reset, 0);
-	msleep(5);
+	msleep(500);
 	gpio_set_value(touch->gpio_reset, 1);
-	msleep(60);
+	msleep(500);
 }
 
 static void at168_work(struct work_struct *work)
@@ -90,15 +90,15 @@ static void at168_work(struct work_struct *work)
 	input_report_key(touch->input_dev, BTN_TOUCH, (event.data.fingers == 1 || event.data.fingers == 2) );
 	input_report_key(touch->input_dev, BTN_2, event.data.fingers == 2);
 
-	if (!event.data.fingers || (event.data.fingers > 2))
-		goto out;
+	/*if (!event.data.fingers || (event.data.fingers > 2))
+		goto out;*/
 
 	for (i = 0; i < event.data.fingers; i++) {
 		input_report_abs(touch->input_dev, ABS_MT_POSITION_X,
 				 event.data.coord[i][0]);
 		input_report_abs(touch->input_dev, ABS_MT_POSITION_Y,
 				 event.data.coord[i][1]);
-		input_report_abs(touch->input_dev, ABS_MT_TRACKING_ID, i);
+		//input_report_abs(touch->input_dev, ABS_MT_TRACKING_ID, i);
 		input_report_abs(touch->input_dev, ABS_MT_TOUCH_MAJOR, 10);
 		input_report_abs(touch->input_dev, ABS_MT_WIDTH_MAJOR, 20);
 		input_mt_sync(touch->input_dev);
@@ -134,7 +134,7 @@ static int at168_read_registers(struct at168_data *touch, unsigned char reg, uns
 	msgs[0].addr = touch->client->addr;
 	msgs[0].len = 1;
 	msgs[0].buf = &reg;
-	msgs[0].flags = 0;//I2C_M_REV_DIR_ADDR;
+	msgs[0].flags = I2C_M_REV_DIR_ADDR;
 	
 	msgs[1].addr = touch->client->addr;
 	msgs[1].len=len;
