@@ -148,8 +148,8 @@ static int suspend_prepare(suspend_state_t state)
 	error = suspend_freeze_processes();
 	if (!error)
 		return 0;
-	printk("One or more tasks refusing to freeze");
-	/*suspend_stats.failed_freeze++;*/
+	log_suspend_abort_reason("One or more tasks refusing to freeze");
+	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
@@ -189,11 +189,11 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
-		//last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
+		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 		last_dev %= REC_FAILED_NUM;
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
-		//log_suspend_abort_reason("%s device failed to power down",
-		//	suspend_stats.failed_devs[last_dev]);
+		log_suspend_abort_reason("%s device failed to power down",
+			suspend_stats.failed_devs[last_dev]);
 		goto Platform_finish;
 	}
 
@@ -219,8 +219,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	error = disable_nonboot_cpus();
 	if (error || suspend_test(TEST_CPUS)) {
-		//log_suspend_abort_reason("Disabling non-boot cpus failed");
-		printk("Disabling non-boot cpus failed");
+		log_suspend_abort_reason("Disabling non-boot cpus failed");
 		goto Enable_cpus;
 	}
 
@@ -234,10 +233,9 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 			error = suspend_ops->enter(state);
 			events_check_enabled = false;
 		} else {
-			//pm_get_active_wakeup_sources(suspend_abort,
-			//	MAX_SUSPEND_ABORT_LEN);
-			//log_suspend_abort_reason(suspend_abort);
-			printk("suspend abort");
+			pm_get_active_wakeup_sources(suspend_abort,
+				MAX_SUSPEND_ABORT_LEN);
+			log_suspend_abort_reason(suspend_abort);
 		}
 		syscore_resume();
 	}
@@ -285,7 +283,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
-		//log_suspend_abort_reason("Some devices failed to suspend");
+		log_suspend_abort_reason("Some devices failed to suspend");
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -336,7 +334,7 @@ static void suspend_finish(void)
  * Fail if that's not the case.  Otherwise, prepare for system suspend, make the
  * system enter the given sleep state and clean up after wakeup.
  */
-int enter_state(suspend_state_t state)
+static int enter_state(suspend_state_t state)
 {
 	int error;
 
@@ -398,16 +396,15 @@ int pm_suspend(suspend_state_t state)
 	int error;
 
 	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
-
 		return -EINVAL;
 
 	pm_suspend_marker("entry");
 	error = enter_state(state);
 	if (error) {
-		/*suspend_stats.fail++;*/
+		suspend_stats.fail++;
 		dpm_save_failed_errno(error);
 	} else {
-		/*suspend_stats.success++;*/
+		suspend_stats.success++;
 	}
 	pm_suspend_marker("exit");
 	return error;
