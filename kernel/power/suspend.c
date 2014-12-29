@@ -7,7 +7,7 @@
  *
  * This file is released under the GPLv2.
  */
-
+#define DEBUG 1
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -146,28 +146,29 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		if (error)
 			goto Platform_finish;
 	}
-
-	error = dpm_suspend_noirq(PMSG_SUSPEND);
+	printk(KERN_INFO "%s", __func__);
+	//error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
 		goto Platform_finish;
 	}
-
+	printk(KERN_INFO "%s", __func__);
 	if (suspend_ops->prepare_late) {
 		error = suspend_ops->prepare_late();
 		if (error)
 			goto Platform_wake;
 	}
-
-	if (suspend_test(TEST_PLATFORM))
-		goto Platform_wake;
+	printk(KERN_INFO "%s", __func__);
+	//if (suspend_test(TEST_PLATFORM))
+	//	goto Platform_wake;
 
 	error = disable_nonboot_cpus();
 	if (error || suspend_test(TEST_CPUS))
 		goto Enable_cpus;
-
-	arch_suspend_disable_irqs();
-	BUG_ON(!irqs_disabled());
+	printk(KERN_INFO "%s", __func__);
+	//arch_suspend_disable_irqs();
+	printk(KERN_INFO "%s", __func__);
+	//BUG_ON(!irqs_disabled());
 
 	error = syscore_suspend();
 	if (!error) {
@@ -178,17 +179,17 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		}
 		syscore_resume();
 	}
-
+	printk(KERN_INFO "%s", __func__);
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
-
+	printk(KERN_INFO "%s", __func__);
  Enable_cpus:
 	enable_nonboot_cpus();
 
  Platform_wake:
 	if (suspend_ops->wake)
 		suspend_ops->wake();
-
+	printk(KERN_INFO "%s", __func__);
 	dpm_resume_noirq(PMSG_RESUME);
 
  Platform_finish:
@@ -210,29 +211,36 @@ int suspend_devices_and_enter(suspend_state_t state)
 
 	if (!suspend_ops)
 		return -ENOSYS;
-
+	printk(KERN_INFO "%s", __func__);
 	trace_machine_suspend(state);
+	printk(KERN_INFO "%s", __func__);
 	if (suspend_ops->begin) {
 		error = suspend_ops->begin(state);
 		if (error)
 			goto Close;
 	}
-	suspend_console();
+	printk(KERN_INFO "%s", __func__);
+	//suspend_console();
+	printk(KERN_INFO "%s", __func__);
 	suspend_test_start();
-	error = dpm_suspend_start(PMSG_SUSPEND);
+	printk(KERN_INFO "%s", __func__);
+	//error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
 		goto Recover_platform;
 	}
-	suspend_test_finish("suspend devices");
-	if (suspend_test(TEST_DEVICES))
-		goto Recover_platform;
-
+	printk(KERN_INFO "%s", __func__);
+	//suspend_test_finish("suspend devices");
+	//if (suspend_test(TEST_DEVICES))
+	//	goto Recover_platform;
+	printk(KERN_INFO "%s", __func__);
 	do {
+		printk(KERN_INFO "%s suspend_enter" , __func__);
 		error = suspend_enter(state, &wakeup);
+		msleep(1000);
 	} while (!error && !wakeup
 		&& suspend_ops->suspend_again && suspend_ops->suspend_again());
-
+	printk(KERN_INFO "%s wake", __func__);
  Resume_devices:
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
@@ -285,7 +293,7 @@ int enter_state(suspend_state_t state)
 		return -EBUSY;
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	sys_sync();
+	//sys_sync();
 	printk("done.\n");
 
 	pr_debug("PM: Preparing system for %s sleep\n", pm_states[state]);
