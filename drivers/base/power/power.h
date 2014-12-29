@@ -43,6 +43,7 @@ static inline void device_pm_remove(struct device *dev)
 	pm_runtime_remove(dev);
 }
 
+static inline void device_pm_add(struct device *dev) {}
 static inline void device_pm_move_before(struct device *deva,
 					 struct device *devb) {}
 static inline void device_pm_move_after(struct device *deva,
