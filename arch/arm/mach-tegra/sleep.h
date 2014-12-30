@@ -207,8 +207,9 @@ static inline void flowctrl_writel(unsigned long val, void __iomem *addr)
 void tegra_pen_lock(void);
 void tegra_pen_unlock(void);
 void tegra_cpu_wfi(void);
-void tegra_sleep_cpu_save(unsigned long v2p);
+int tegra_sleep_cpu_finish(unsigned long v2p);
 void tegra_resume(void);
+void tegra_cpu_resume(void);
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 extern unsigned int tegra2_iram_start;
@@ -217,7 +218,7 @@ int  tegra2_cpu_is_resettable_soon(void);
 void tegra2_cpu_reset(int cpu);
 void tegra2_cpu_set_resettable_soon(void);
 void tegra2_cpu_clear_resettable(void);
-void tegra2_sleep_core(unsigned long v2p);
+int tegra2_sleep_core_finish(unsigned long int);
 void tegra2_hotplug_shutdown(void);
 void tegra2_sleep_wfi(unsigned long v2p);
 #else
