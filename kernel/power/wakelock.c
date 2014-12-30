@@ -275,17 +275,17 @@ static void suspend(struct work_struct *work)
 	int ret;
 	int entry_event_num;
 	struct timespec ts_entry, ts_exit;
-
+/*
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: abort suspend\n");
 		return;
 	}
-/*
+
 	pr_info("Expire wake_locks");
 	expire_wake_locks(0);
 	msleep(5000);
-*/ 
+ */
 	entry_event_num = current_event_num;
 	sys_sync();
 	if (debug_mask & DEBUG_SUSPEND)
@@ -342,6 +342,7 @@ static DEFINE_TIMER(expire_timer, expire_wake_locks, 0, 0);
 
 static int power_suspend_late(struct device *dev)
 {
+/*
 	int ret = has_wake_lock(WAKE_LOCK_SUSPEND) ? -EAGAIN : 0;
 #ifdef CONFIG_WAKELOCK_STAT
 	wait_for_wakeup = !ret;
@@ -349,6 +350,8 @@ static int power_suspend_late(struct device *dev)
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("power_suspend_late return %d\n", ret);
 	return ret;
+*/
+	return 0;
 }
 
 static struct dev_pm_ops power_driver_pm_ops = {
