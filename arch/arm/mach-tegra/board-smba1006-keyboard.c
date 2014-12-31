@@ -39,7 +39,7 @@ static struct gpio_keys_button smba_keys[] = {
 		.gpio = SMBA1006_KEY_VOLUMEUP,
 		.active_low = true,
 		.debounce_interval = 10,
-		.wakeup = false,		
+		.wakeup = true,
 		.code = KEY_VOLUMEUP,
 		.type = EV_KEY,		
 		.desc = "volume up",
@@ -48,7 +48,7 @@ static struct gpio_keys_button smba_keys[] = {
 		.gpio = SMBA1006_KEY_VOLUMEDOWN,
 		.active_low = true,
 		.debounce_interval = 10,
-		.wakeup = false,		
+		.wakeup = true,		
 		.code = KEY_VOLUMEDOWN,
 		.type = EV_KEY,		
 		.desc = "volume down",
@@ -66,7 +66,7 @@ static struct gpio_keys_button smba_keys[] = {
 		.gpio = SMBA1006_KEY_BACK,
 		.active_low = true,
 		.debounce_interval = 10,
-		.wakeup = false,		
+		.wakeup = true,		
 		.code = KEY_BACK,
 		.type = EV_KEY,		
 		.desc = "back",
@@ -80,7 +80,7 @@ static int smba_wakeup_key(void)
 	unsigned long status =
 		readl(IO_ADDRESS(TEGRA_PMC_BASE) + PMC_WAKE_STATUS);
     pr_info("Wake_Key: %d", status);
-	return (status & SMBA1006_WAKE_KEY_POWER) ?
+	return (status & (SMBA1006_WAKE_KEY_POWER | SMBA1006_WAKE_KEY_BACK | SMBA1006_WAKE_KEY_VOLUMEUP | SMBA1006_WAKE_KEY_VOLUMEDOWN)) ?
 		KEY_POWER : KEY_RESERVED;	
 }
 
@@ -136,5 +136,8 @@ static struct platform_device *smba_pmu_devices[] __initdata = {
 /* Register all keyboard devices */
 int __init smba_keys_init(void)
 {
+	int i;
+	for (i = 0; i < ARRAY_SIZE(smba_keys); i++)
+		tegra_gpio_enable(smba_keys[i].gpio);
 	return platform_add_devices(smba_pmu_devices, ARRAY_SIZE(smba_pmu_devices));
 }
