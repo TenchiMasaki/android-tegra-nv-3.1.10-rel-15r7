@@ -85,10 +85,8 @@ static int try_to_freeze_tasks(bool sig_only)
 
 		if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 			++todo;
-			/*
 			wakeup = 1;
 			break;
-			*/
 		}
 		if (!todo || time_after(jiffies, end_time))
 			break;
