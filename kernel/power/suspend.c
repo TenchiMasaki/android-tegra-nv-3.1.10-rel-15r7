@@ -96,24 +96,30 @@ static int suspend_prepare(void)
 	if (!suspend_ops || !suspend_ops->enter)
 		return -EPERM;
 
+	printk(KERN_INFO "%s", __func__);
 	pm_prepare_console();
 
+	printk(KERN_INFO "%s", __func__);
 	error = pm_notifier_call_chain(PM_SUSPEND_PREPARE);
 	if (error)
 		goto Finish;
-
+	printk(KERN_INFO "%s", __func__);
+	
 	error = usermodehelper_disable();
 	if (error)
 		goto Finish;
-
+	printk(KERN_INFO "%s", __func__);
 	error = suspend_freeze_processes();
 	if (!error)
 		return 0;
-
+	printk(KERN_INFO "%s", __func__);
 	suspend_thaw_processes();
+	printk(KERN_INFO "%s", __func__);
 	usermodehelper_enable();
+	printk(KERN_INFO "%s", __func__);
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
+	printk(KERN_INFO "%s", __func__);
 	pm_restore_console();
 	return error;
 }
@@ -147,7 +153,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 			goto Platform_finish;
 	}
 	printk(KERN_INFO "%s", __func__);
-	//error = dpm_suspend_noirq(PMSG_SUSPEND);
+	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
 		goto Platform_finish;
@@ -159,16 +165,16 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 			goto Platform_wake;
 	}
 	printk(KERN_INFO "%s", __func__);
-	//if (suspend_test(TEST_PLATFORM))
-	//	goto Platform_wake;
+	if (suspend_test(TEST_PLATFORM))
+		goto Platform_wake;
 
 	error = disable_nonboot_cpus();
 	if (error || suspend_test(TEST_CPUS))
 		goto Enable_cpus;
 	printk(KERN_INFO "%s", __func__);
-	//arch_suspend_disable_irqs();
+	arch_suspend_disable_irqs();
 	printk(KERN_INFO "%s", __func__);
-	//BUG_ON(!irqs_disabled());
+	BUG_ON(!irqs_disabled());
 
 	error = syscore_suspend();
 	if (!error) {
@@ -220,24 +226,25 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	printk(KERN_INFO "%s", __func__);
-	//suspend_console();
+	suspend_console();
 	printk(KERN_INFO "%s", __func__);
 	suspend_test_start();
 	printk(KERN_INFO "%s", __func__);
-	//error = dpm_suspend_start(PMSG_SUSPEND);
+	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
 		goto Recover_platform;
 	}
 	printk(KERN_INFO "%s", __func__);
-	//suspend_test_finish("suspend devices");
-	//if (suspend_test(TEST_DEVICES))
-	//	goto Recover_platform;
+	
+	suspend_test_finish("suspend devices");
+	if (suspend_test(TEST_DEVICES))
+		goto Recover_platform;
+	
 	printk(KERN_INFO "%s", __func__);
 	do {
 		printk(KERN_INFO "%s suspend_enter" , __func__);
 		error = suspend_enter(state, &wakeup);
-		msleep(1000);
 	} while (!error && !wakeup
 		&& suspend_ops->suspend_again && suspend_ops->suspend_again());
 	printk(KERN_INFO "%s wake", __func__);
