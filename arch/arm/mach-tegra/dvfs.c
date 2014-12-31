@@ -565,8 +565,14 @@ static void tegra_dvfs_resume(void)
 	list_for_each_entry(rail, &dvfs_rail_list, node)
 		rail->suspended = false;
 
-	list_for_each_entry(rail, &dvfs_rail_list, node)
-		dvfs_rail_update(rail);
+	list_for_each_entry(rail, &dvfs_rail_list, node) {
+		if (dvfs_rail_update(rail)) {
+			msleep(50);
+			pr_info("%s: Try again", __func__);
+			if (dvfs_rail_update(rail))
+				pr_info("%s: Failed again", __func__);
+		}
+	}
 
 	mutex_unlock(&dvfs_lock);
 }
