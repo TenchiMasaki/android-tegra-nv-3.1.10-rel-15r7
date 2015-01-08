@@ -21,7 +21,9 @@
 /* 
  * Timeout for stopping processes
  */
-#define TIMEOUT	(20 * HZ)
+#define TIMEOUT	(30 * HZ)
+
+static void thaw_tasks(bool nosig_only);
 
 static inline int freezable(struct task_struct * p)
 {
@@ -47,8 +49,11 @@ static int try_to_freeze_tasks(bool sig_only)
 
 	end_time = jiffies + TIMEOUT;
 
+	pr_debug("%s: freeze wq begin", __func__);
 	if (!sig_only)
 		freeze_workqueues_begin();
+
+	pr_debug("%s: freeze wq finished", __func__);
 
 	while (true) {
 		todo = 0;
@@ -82,16 +87,20 @@ static int try_to_freeze_tasks(bool sig_only)
 			wq_busy = freeze_workqueues_busy();
 			todo += wq_busy;
 		}
-
+		
+/*
 		if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 			++todo;
 			wakeup = 1;
 			break;
 		}
+*/
+
 		if (!todo || time_after(jiffies, end_time))
 			break;
 
 		if (pm_wakeup_pending()) {
+			pr_debug("%s: wake up", __func__);
 			wakeup = true;
 			break;
 		}
@@ -100,8 +109,9 @@ static int try_to_freeze_tasks(bool sig_only)
 		 * We need to retry, but first give the freezing tasks some
 		 * time to enter the regrigerator.
 		 */
-		msleep(10);
+		msleep(100);
 	}
+	pr_debug("%s: end loop", __func__);
 
 	do_gettimeofday(&end);
 	elapsed_csecs64 = timeval_to_ns(&end) - timeval_to_ns(&start);
@@ -142,6 +152,7 @@ static int try_to_freeze_tasks(bool sig_only)
 		printk("(elapsed %d.%02d seconds) ", elapsed_csecs / 100,
 			elapsed_csecs % 100);
 	}
+	pr_debug("%s: end todo: %d", __func__, todo);
 
 	return todo ? -EBUSY : 0;
 }
@@ -155,21 +166,31 @@ int freeze_processes(void)
 
 	printk("Freezing user space processes ... ");
 	error = try_to_freeze_tasks(true);
-	if (error)
-		goto Exit;
+	if (!error) {
+		printk("done.");
+		oom_killer_disable();
+	}
+	printk("\n");
+	
+	if (error) {
+		thaw_tasks(true);
+		return error;
+	}
+	
 	printk("done.\n");
 
 	printk("Freezing remaining freezable tasks ... ");
 	error = try_to_freeze_tasks(false);
-	if (error)
-		goto Exit;
-	printk("done.");
-
-	oom_killer_disable();
+	
+	if (!error)
+		printk("done.");
+	printk("\n");
  Exit:
 	BUG_ON(in_atomic());
 	printk("\n");
 
+	if (error)
+		thaw_processes();
 	return error;
 }
 
@@ -177,6 +198,7 @@ static void thaw_tasks(bool nosig_only)
 {
 	struct task_struct *g, *p;
 
+	printk("Restarting tasks ... ");
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
 		if (!freezable(p))
