@@ -2557,7 +2557,7 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("epp",	"epp",			NULL,	19,	0x16c,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 	PERIPH_CLK("mpe",	"mpe",			NULL,	60,	0x170,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #else
-	PERIPH_CLK("epp",	"epp",			NULL,	19,	0x16c,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
+	PERIPH_CLK("epp",	"epp",			NULL,	19,	0x16c,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 	PERIPH_CLK("mpe",	"mpe",			NULL,	60,	0x170,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #endif
 	PERIPH_CLK("host1x",	"host1x",		NULL,	28,	0x180,	0x31E,	166000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
@@ -2843,7 +2843,7 @@ static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 	{ 6, 912000 },
 	{ 7, 1000000 },
 	{ 8, 1200000 },
-	{ 9, 1408000 },
+	{ 9, 1400000 },
 	{ 10, CPUFREQ_TABLE_END },
 };
 
@@ -2857,8 +2857,8 @@ static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
 	{ 6, 912000 },
 	{ 7, 1000000 },
 	{ 8, 1200000 },
-	{ 9, 1408000 },
-	{ 10, 1504000 },
+	{ 9, 1400000 },
+	{ 10, 1500000 },
 	{ 11, CPUFREQ_TABLE_END },
 };
 
@@ -2872,8 +2872,8 @@ static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
 	{ 6, 912000 },
 	{ 7, 1000000 },
 	{ 8, 1200000 },
-	{ 9, 1408000 },
-	{ 10, 1504000 },
+	{ 9, 1400000 },
+	{ 10, 1500000 },
 	{ 11, 1600000 },
 	{ 12, CPUFREQ_TABLE_END },
 };
@@ -2888,8 +2888,8 @@ static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
 	{ 6, 912000 },
 	{ 7, 1000000 },
 	{ 8, 1200000 },
-	{ 9, 1408000 },
-	{ 10, 1504000 },
+	{ 9, 1400000 },
+	{ 10, 1500000 },
 	{ 11, 1600000 },
 	{ 12, 1640000 },
 	{ 13, 1704000 },
