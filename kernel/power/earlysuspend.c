@@ -29,7 +29,7 @@ enum {
 	DEBUG_VERBOSE = 1U << 3,
 };
 #ifdef CONFIG_PM_DEBUG
-static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND;
+static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND | DEBUG_VERBOSE;
 #else
 static int debug_mask = DEBUG_USER_STATE;
 #endif
@@ -117,7 +117,7 @@ atomic_set(&optimize_comp_on, 1);
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("early_suspend: sync\n");
 
-	sys_sync();
+	//sys_sync();
 abort:
 	spin_lock_irqsave(&state_lock, irqflags);
 	if (state == SUSPEND_REQUESTED_AND_SUSPENDED)
