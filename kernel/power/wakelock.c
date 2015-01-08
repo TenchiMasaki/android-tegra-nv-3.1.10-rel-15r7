@@ -232,6 +232,17 @@ static void print_active_locks(int type)
 	}
 }
 
+static void wake_unlock_all(int type)
+{
+	struct wake_lock *lock, *n;
+
+	BUG_ON(type >= WAKE_LOCK_TYPE_COUNT);
+	list_for_each_entry_safe(lock, n, &active_wake_locks[type], link) {
+		wake_unlock(lock);
+	}
+}
+
+
 static long has_wake_lock_locked(int type)
 {
 	struct wake_lock *lock, *n;
@@ -276,19 +287,23 @@ static void suspend(struct work_struct *work)
 	int entry_event_num;
 	struct timespec ts_entry, ts_exit;
 
+	pr_info("unlock all wake locks");
+	wake_unlock_all(WAKE_LOCK_SUSPEND);
+//	msleep(5000);
+
+
+/*
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: abort suspend\n");
 		return;
 	}
-
-/*
-	pr_info("Expire wake_locks");
-	expire_wake_locks(0);
-	msleep(5000);
 */
+
 	entry_event_num = current_event_num;
-	sys_sync();
+	pr_info("suspend: unlocked all");
+	//sys_sync();
+	pr_info("suspend: sys synced");
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("suspend: enter suspend\n");
 	getnstimeofday(&ts_entry);
