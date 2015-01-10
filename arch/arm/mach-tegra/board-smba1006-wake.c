@@ -63,7 +63,7 @@ static void smba_wake_event(struct input_handle *handle, unsigned int type, unsi
 	    schedule_work(&do_wake);
 	}
 	else */ 
-	if(type == EV_KEY && (code == KEY_POWER || code == KEY_BACK || code == KEY_VOLUMEUP || code == KEY_VOLUMEDOWN)) {
+	if(type == EV_KEY && (code == KEY_POWER || code == KEY_BACK)) {
 	  	printk(KERN_DEBUG "wake_event == value: %d", value);
 	  if(!!value) {
 	    // button pressed; cancel TPS sleep mode

@@ -287,8 +287,8 @@ static void suspend(struct work_struct *work)
 	int entry_event_num;
 	struct timespec ts_entry, ts_exit;
 
-	pr_info("unlock all wake locks");
-	wake_unlock_all(WAKE_LOCK_SUSPEND);
+	//pr_info("unlock all wake locks");
+	//wake_unlock_all(WAKE_LOCK_SUSPEND);
 //	msleep(5000);
 
 
@@ -301,9 +301,9 @@ static void suspend(struct work_struct *work)
 */
 
 	entry_event_num = current_event_num;
-	pr_info("suspend: unlocked all");
+	//pr_info("suspend: unlocked all");
 	//sys_sync();
-	pr_info("suspend: sys synced");
+	//pr_info("suspend: sys synced");
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("suspend: enter suspend\n");
 	getnstimeofday(&ts_entry);

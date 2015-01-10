@@ -52,13 +52,11 @@ int tegra_wake_to_irq(int wake);
 
 #ifdef CONFIG_MACH_SMBA1006
 #define TEGRA_WAKE_GPIO_PH0	(1 << 19)
-#define TEGRA_WAKE_GPIO_PQ4	(1 << 20)
-#define TEGRA_WAKE_GPIO_PV4	(1 << 21)
 #else
 #define TEGRA_WAKE_USB1_VBUS	(1 << 19)
-#define TEGRA_WAKE_USB3_VBUS	(1 << 20)
-#define TEGRA_WAKE_USB1_ID		(1 << 21)
 #endif
+#define TEGRA_WAKE_USB3_VBUS	(1 << 20)
+#define TEGRA_WAKE_USB1_ID	(1 << 21)
 #define TEGRA_WAKE_USB3_ID	(1 << 22)
 #define TEGRA_WAKE_GPIO_PI5	(1 << 23)
 #define TEGRA_WAKE_GPIO_PV2	(1 << 24)
