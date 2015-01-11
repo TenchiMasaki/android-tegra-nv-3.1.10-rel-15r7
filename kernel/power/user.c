@@ -248,7 +248,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 
 		printk("Syncing filesystems ... ");
-		sys_sync();
+		//sys_sync();
 		printk("done.\n");
 
 		error = usermodehelper_disable();

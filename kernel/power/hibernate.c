@@ -626,7 +626,7 @@ int hibernate(void)
 		goto Exit;
 
 	printk(KERN_INFO "PM: Syncing filesystems ... ");
-	sys_sync();
+	//sys_sync();
 	printk("done.\n");
 
 	error = prepare_processes();

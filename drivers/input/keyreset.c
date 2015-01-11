@@ -40,7 +40,7 @@ int restart_requested;
 static void deferred_restart(struct work_struct *dummy)
 {
 	restart_requested = 2;
-	sys_sync();
+	//sys_sync();
 	restart_requested = 3;
 	kernel_restart(NULL);
 }
