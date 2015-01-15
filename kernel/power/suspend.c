@@ -169,6 +169,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		goto Platform_wake;
 
 	error = disable_nonboot_cpus();
+  printk(KERN_INFO "%s: disabled cpus", __func__);
 	if (error || suspend_test(TEST_CPUS))
 		goto Enable_cpus;
 	printk(KERN_INFO "%s: disable irqs", __func__);
