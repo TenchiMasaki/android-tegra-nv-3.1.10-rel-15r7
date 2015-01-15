@@ -3,7 +3,7 @@
  *
  * Originally from kernel/power/process.c
  */
-#define DEBUG 1
+
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
