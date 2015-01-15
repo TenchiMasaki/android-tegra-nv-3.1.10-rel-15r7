@@ -176,6 +176,7 @@ static inline void check_for_tasks(int cpu)
 {
 	struct task_struct *p;
 
+	printk("%s: begin", __func__);
 	write_lock_irq(&tasklist_lock);
 	for_each_process(p) {
 		if (task_cpu(p) == cpu && p->state == TASK_RUNNING &&
@@ -187,6 +188,7 @@ static inline void check_for_tasks(int cpu)
 				p->state, p->flags);
 	}
 	write_unlock_irq(&tasklist_lock);
+	printk("%s: end", __func__);
 }
 
 struct take_cpu_down_param {
@@ -200,12 +202,14 @@ static int __ref take_cpu_down(void *_param)
 	struct take_cpu_down_param *param = _param;
 	int err;
 
+    printk("%s: begin", __func__);
 	/* Ensure this CPU doesn't handle any more interrupts. */
 	err = __cpu_disable();
 	if (err < 0)
 		return err;
-
+	printk("%s: disable", __func__);
 	cpu_notify(CPU_DYING | param->mod, param->hcpu);
+	printk("%s: end", __func__);
 	return 0;
 }
 
@@ -219,14 +223,18 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 		.mod = mod,
 		.hcpu = hcpu,
 	};
+	printk("%s: start", __func__);
 
 	if (num_online_cpus() == 1)
 		return -EBUSY;
+	printk("%s: num", __func__);
 
 	if (!cpu_online(cpu))
 		return -EINVAL;
-
+	printk("%s: online", __func__);
+	
 	cpu_hotplug_begin();
+	printk("%s: hotplug", __func__);
 
 	err = __cpu_notify(CPU_DOWN_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (err) {
@@ -236,6 +244,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 				__func__, cpu);
 		goto out_release;
 	}
+	printk("%s: notify", __func__);
 
 	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
@@ -244,6 +253,7 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 
 		goto out_release;
 	}
+	printk("%s: stop", __func__);
 	BUG_ON(cpu_online(cpu));
 
 	/*
@@ -255,40 +265,49 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 */
 	while (!idle_cpu(cpu))
 		cpu_relax();
+	printk("%s: idle", __func__);
 
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
+	printk("%s: die", __func__);
 
 	/* CPU is completely dead: tell everyone.  Too late to complain. */
 	cpu_notify_nofail(CPU_DEAD | mod, hcpu);
+	printk("%s: nofail", __func__);
 
 	check_for_tasks(cpu);
+	printk("%s: tasks", __func__);
 
 out_release:
 	cpu_hotplug_done();
 	if (!err)
 		cpu_notify_nofail(CPU_POST_DEAD | mod, hcpu);
 	return err;
+	printk("%s: done", __func__);
 }
 
 int __ref cpu_down(unsigned int cpu)
 {
 	int err;
 
+    printk("%s: begin", __func__);
 	trace_cpu_hotplug(cpu, POWER_CPU_DOWN_START);
-
+	printk("%s: hotplug", __func__);
 	cpu_maps_update_begin();
-
+	printk("%s: maps", __func__);
 	if (cpu_hotplug_disabled) {
 		err = -EBUSY;
 		goto out;
 	}
-
+	printk("%s: disabled", __func__);
 	err = _cpu_down(cpu, 0);
+	printk("%s: down", __func__);
 
 out:
 	cpu_maps_update_done();
+	printk("%s: done", __func__);
 	trace_cpu_hotplug(cpu, POWER_CPU_DOWN_DONE);
+	printk("%s: end", __func__);
 	return err;
 }
 EXPORT_SYMBOL(cpu_down);
@@ -301,10 +320,13 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 	void *hcpu = (void *)(long)cpu;
 	unsigned long mod = tasks_frozen ? CPU_TASKS_FROZEN : 0;
 
+    printk("%s: begin", __func__);
 	if (cpu_online(cpu) || !cpu_present(cpu))
 		return -EINVAL;
 
+	printk("%s: online", __func__);
 	cpu_hotplug_begin();
+	printk("%s: hotplug", __func__);
 	ret = __cpu_notify(CPU_UP_PREPARE | mod, hcpu, -1, &nr_calls);
 	if (ret) {
 		nr_calls--;
@@ -312,21 +334,24 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 				__func__, cpu);
 		goto out_notify;
 	}
+	printk("%s: notify", __func__);
 
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu);
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
+	printk("%s: up", __func__);
 
 	/* Now call notifier in preparation. */
 	cpu_notify(CPU_ONLINE | mod, hcpu);
+	printk("%s: notify online", __func__);
 
 out_notify:
 	if (ret != 0)
 		__cpu_notify(CPU_UP_CANCELED | mod, hcpu, nr_calls, NULL);
 	cpu_hotplug_done();
-
+	printk("%s: end", __func__);
 	return ret;
 }
 
@@ -403,30 +428,35 @@ int disable_nonboot_cpus(void)
 {
 	int cpu, first_cpu, error = 0;
 
+    printk("%s: begin", __func__);
 	cpu_maps_update_begin();
+	printk("%s: maps", __func__);
 	first_cpu = cpumask_first(cpu_online_mask);
 	/*
 	 * We take down all of the non-boot CPUs in one shot to avoid races
 	 * with the userspace trying to use the CPU hotplug at the same time
 	 */
 	cpumask_clear(frozen_cpus);
+	printk("%s: clear", __func__);
 	arch_disable_nonboot_cpus_begin();
-
 	printk("Disabling non-boot CPUs ...\n");
 	for_each_online_cpu(cpu) {
 		if (cpu == first_cpu)
 			continue;
 		error = _cpu_down(cpu, 1);
-		if (!error)
+    printk("%s: down", __func__);
+		if (!error) {
 			cpumask_set_cpu(cpu, frozen_cpus);
-		else {
+      printk("%s: mask", __func__);
+		} else {
 			printk(KERN_ERR "Error taking CPU%d down: %d\n",
 				cpu, error);
 			break;
 		}
 	}
 
-	arch_disable_nonboot_cpus_end();
+  arch_disable_nonboot_cpus_end();
+  printk("%s: disable", __func__);
 
 	if (!error) {
 		BUG_ON(num_online_cpus() > 1);
@@ -435,7 +465,9 @@ int disable_nonboot_cpus(void)
 	} else {
 		printk(KERN_ERR "Non-boot CPUs are not disabled\n");
 	}
+  printk("%s: online", __func__);
 	cpu_maps_update_done();
+  printk("%s: done", __func__);
 	return error;
 }
 
