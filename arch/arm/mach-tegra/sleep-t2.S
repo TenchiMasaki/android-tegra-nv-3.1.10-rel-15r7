@@ -358,6 +358,34 @@ padload_done:
 	dmb
 	bmi	1b
 
+	mov32	r7, TEGRA_TMRUS_BASE
+	ldr	r1, [r7]
+	add	r1, r1, #0xff		@ 255uS delay for PLL stabilization
+
+2:	ldr	r0, [r7]
+	cmp	r0, r1
+	dmb
+	bmi	2b
+
+	mov32	r7, TEGRA_TMRUS_BASE
+	ldr	r1, [r7]
+	add	r1, r1, #0xff		@ 255uS delay for PLL stabilization
+
+3:	ldr	r0, [r7]
+	cmp	r0, r1
+	dmb
+	bmi	3b
+
+	mov32	r7, TEGRA_TMRUS_BASE
+	ldr	r1, [r7]
+	add	r1, r1, #0xff		@ 255uS delay for PLL stabilization
+
+4:	ldr	r0, [r7]
+	cmp	r0, r1
+	dmb
+	bmi	4b
+
+
 	adr	r4, tegra2_sclk_save
 	ldr	r4, [r4]
 	mov32	r0, TEGRA_CLK_RESET_BASE
@@ -425,7 +453,7 @@ tegra2_cpu_clk32k:
 	/* 2 us delay between changing sclk and disabling PLLs */
 	mov32	r7, TEGRA_TMRUS_BASE
 	ldr	r1, [r7]
-	add	r1, r1, #3
+	add	r1, r1, #255
 
 1:	ldr	r0, [r7]
 	cmp	r0, r1
