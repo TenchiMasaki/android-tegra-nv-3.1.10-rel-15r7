@@ -14,7 +14,6 @@
  *
  */
 
-#define DEBUG 1
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -44,6 +43,10 @@
 #include <mach/nand.h>
 #include <mach/iomap.h>
 
+#include <linux/debugfs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+
 #include "board.h"
 #include "board-smba1006.h"
 #include "clock.h"
@@ -55,6 +58,9 @@
 
 // TODO: clean these up into a common header
 #define S5K4CDGX_MCLK_FREQ 24000000
+
+static struct dentry *dir = 0;
+static u32 on = 0;
 
 static int clink_s5k4cdgx_set_power(struct device *dev, int power_on) {
   return smba_s5k4cdgx_set_power(power_on);
@@ -99,9 +105,8 @@ static struct platform_device smba_tegra_s5k4cdgx_device = {
 #if 0
 static void camera_suspend(struct device *dev, pm_message_t state)
 {
-	pr_debug("%s\n", __func__);
+	pr_info("%s\n", __func__);
 	smba_s5k4cdgx_set_power(0);
-	msleep(100);
 }
 
 static int __devinit camera_probe(struct platform_device *pdev) {
@@ -157,15 +162,30 @@ static void smba_disable_camera(struct nvhost_device *ndev)
 #ifdef CONFIG_HAS_EARLYSUSPENDx
 static void camera_early_suspend(struct early_suspend *h)
 {
-	pr_debug("%s\n", __func__);
+	pr_info("%s\n", __func__);
 	smba_s5k4cdgx_set_power(0);
 }
 
 static void camera_late_resume(struct early_suspend *h)
 {
-	pr_debug("%s\n", __func__);
-x}
+	pr_info("%s\n", __func__);
+}
 #endif
+
+
+static int add_read_op(void *data)
+{
+	return on;
+}
+
+static int add_write_op(void *data, u64 value)
+{
+	smba_s5k4cdgx_set_power(value == 0? 0 : 1);
+	on = (value == 0? 0 : 1);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(add_fops, add_read_op, add_write_op, "%llu\n");
 
 static struct tegra_camera_platform_data smba_camera_pdata = {
   .enable_camera = &smba_enable_camera,
@@ -177,12 +197,13 @@ static struct tegra_camera_platform_data smba_camera_pdata = {
 int __init smba_camera_register_devices(void)
 {
   int ret;
+  struct dentry *junk;
 
 
 #ifdef CONFIG_HAS_EARLYSUSPENDx
 	camera_early_suspender.suspend = camera_early_suspend;
 	camera_early_suspender.resume = camera_late_resume;
-	camera_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	camera_early_suspender.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	register_early_suspend(&camera_early_suspender);
 #endif
 
@@ -201,6 +222,26 @@ int __init smba_camera_register_devices(void)
   ret = nvhost_device_register(&tegra_camera_device);
   if(ret)
     return ret;
+    
+    dir = debugfs_create_dir("camera", 0);
+    if (!dir) {
+        printk(KERN_ALERT "debugfs: failed to create /sys/kernel/debug/camera\n");
+        return -1;
+    }
+
+	junk = debugfs_create_file("power", 0666, dir, NULL, &add_fops);
+	if (!junk) {
+		printk(KERN_ALERT "debugfs: Error creating file /sys/kernel/debug/camera/power");
+		return -1;
+	}
+
+	/*
+	junk = debugfs_create_u32("on", 0444, dir, &on);
+	if (!junk) {
+		printk(KERN_ALERT "debugfs: failed to create /sys/kernel/debug/camera/on\n");
+		return -1;
+    }
+    */
 
   return 0;
 }
