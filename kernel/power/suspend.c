@@ -227,7 +227,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	printk(KERN_INFO "%s: console", __func__);
-	suspend_console();
+	//suspend_console();
 	printk(KERN_INFO "%s: test", __func__);
 	suspend_test_start();
 	printk(KERN_INFO "%s: start", __func__);
@@ -253,7 +253,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
 	suspend_test_finish("resume devices");
-	resume_console();
+	//resume_console();
  Close:
 	if (suspend_ops->end)
 		suspend_ops->end();
