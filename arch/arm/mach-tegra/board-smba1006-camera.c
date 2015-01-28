@@ -173,15 +173,17 @@ static void camera_late_resume(struct early_suspend *h)
 #endif
 
 
-static int add_read_op(void *data)
+static int add_read_op(void *data, u64 *value)
 {
-	return on;
+	*value = on;
+	return 0;
 }
 
 static int add_write_op(void *data, u64 value)
 {
-	smba_s5k4cdgx_set_power(value == 0? 0 : 1);
-	on = (value == 0? 0 : 1);
+	int set = value == 0? 0 : 1;
+	smba_s5k4cdgx_set_power(set);
+	on = set;
 	return 0;
 }
 
@@ -234,14 +236,6 @@ int __init smba_camera_register_devices(void)
 		printk(KERN_ALERT "debugfs: Error creating file /sys/kernel/debug/camera/power");
 		return -1;
 	}
-
-	/*
-	junk = debugfs_create_u32("on", 0444, dir, &on);
-	if (!junk) {
-		printk(KERN_ALERT "debugfs: failed to create /sys/kernel/debug/camera/on\n");
-		return -1;
-    }
-    */
 
   return 0;
 }
