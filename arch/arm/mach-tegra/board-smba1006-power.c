@@ -339,14 +339,12 @@ static struct platform_device *smba_power_devices[] __initdata = {
 
 static void smba_board_suspend(int lp_state, enum suspend_stage stg)
 {
-        pr_info("smba_board_suspend");
         if ((lp_state == TEGRA_SUSPEND_LP1) && (stg == TEGRA_SUSPEND_BEFORE_CPU))
                 tegra_console_uart_suspend();
 }
 
 static void smba_board_resume(int lp_state, enum resume_stage stg)
 {
-        pr_info("smba_board_resume");
         if ((lp_state == TEGRA_SUSPEND_LP1) && (stg == TEGRA_RESUME_AFTER_CPU))
                 tegra_console_uart_resume();
 }

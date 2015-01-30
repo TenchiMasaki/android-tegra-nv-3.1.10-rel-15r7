@@ -79,7 +79,7 @@ static int smba_wakeup_key(void)
 {
 	unsigned long status =
 		readl(IO_ADDRESS(TEGRA_PMC_BASE) + PMC_WAKE_STATUS);
-    pr_info("Wake_Key: %d", status);
+
 	return (status & SMBA1006_WAKE_KEY_BACK) ?
 		KEY_POWER : KEY_RESERVED;	
 }
