@@ -80,7 +80,7 @@ static int smba_s5k4cdgx_power_on(void)
 	tegra_camera_clk_set_info(dev, &pclk_info);
 
 	// camera MCLK (vi_sensor clk)
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_NORMAL);
+	//tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_NORMAL);
 	// camera PCLK (vi clk, pixel clk for data, exported from sensor to t2) is an input
 
 	return 0;
@@ -98,7 +98,7 @@ static int smba_s5k4cdgx_power_off(void)
 
 	// camera MCLK (vi_sensor clk)
 	// camera PCLK (vi clk, pixel clk for data) is always an input
-	tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_TRISTATE);
+	//tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_TRISTATE);
 	tegra_camera_disable(dev);
 	return 0;
 }
