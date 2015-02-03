@@ -6,7 +6,8 @@
  */
 
 
-#undef DEBUG
+//#undef DEBUG
+#define DEBUG 1
 
 #include <linux/interrupt.h>
 #include <linux/oom.h>

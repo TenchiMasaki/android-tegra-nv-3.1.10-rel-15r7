@@ -3,6 +3,9 @@
  *
  * This code is licenced under the GPL.
  */
+
+#define DEBUG 1
+
 #include <linux/proc_fs.h>
 #include <linux/smp.h>
 #include <linux/init.h>
