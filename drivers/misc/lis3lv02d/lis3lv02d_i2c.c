@@ -192,7 +192,7 @@ static int lis3lv02d_i2c_suspend(struct device *dev)
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 
-	if (!lis3->pdata || !lis3->pdata->wakeup_flags)
+	//if (!lis3->pdata || !lis3->pdata->wakeup_flags)
 		lis3lv02d_poweroff(lis3);
 	return 0;
 }
@@ -207,8 +207,8 @@ static int lis3lv02d_i2c_resume(struct device *dev)
 	 * be powered on at resume. Pm_runtime turns them off after system
 	 * wide resume is complete.
 	 */
-	if (!lis3->pdata || !lis3->pdata->wakeup_flags ||
-		pm_runtime_suspended(dev))
+	/* if (!lis3->pdata || !lis3->pdata->wakeup_flags ||
+		pm_runtime_suspended(dev)) */
 		lis3lv02d_poweron(lis3);
 
 	return 0;
