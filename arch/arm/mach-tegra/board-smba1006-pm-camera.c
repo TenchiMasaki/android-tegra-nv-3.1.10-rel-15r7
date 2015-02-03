@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <linux/wakelock.h>
 #include <generated/mach-types.h>
 #include <mach/gpio.h>
@@ -49,6 +50,8 @@ void *tegra_camera_get_dev(void);
 int tegra_camera_enable(void *d);
 void tegra_camera_disable(void *d);
 int tegra_camera_clk_set_info(void *d, struct tegra_camera_clk_info *info);
+static bool power = false;
+static DEFINE_MUTEX(mtx);
 
 static struct tegra_camera_clk_info pclk_info = {
   .id = TEGRA_CAMERA_MODULE_VI,
@@ -68,6 +71,11 @@ static int smba_s5k4cdgx_power_on(void)
 {
 	void *dev = tegra_camera_get_dev();
 
+	mutex_lock(&mtx);
+	if (power) {
+		mutex_unlock(&mtx);
+		return 0;
+	}
 	pr_info("%s:", __func__);
 
 	if(!dev) {
@@ -82,14 +90,20 @@ static int smba_s5k4cdgx_power_on(void)
 	// camera MCLK (vi_sensor clk)
 	//tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_NORMAL);
 	// camera PCLK (vi clk, pixel clk for data, exported from sensor to t2) is an input
-
+	power = true;
+	mutex_unlock(&mtx);
 	return 0;
 }
 
 static int smba_s5k4cdgx_power_off(void)
 {
 	void *dev = tegra_camera_get_dev();
-
+	
+	mutex_lock(&mtx);
+	if (!power) {
+		mutex_unlock(&mtx);
+		return 0;
+	}
 	pr_info("%s:", __func__);
 	if(!dev) {
 	  pr_err("%s: could not get pm device!\n", __func__);
@@ -100,6 +114,8 @@ static int smba_s5k4cdgx_power_off(void)
 	// camera PCLK (vi clk, pixel clk for data) is always an input
 	//tegra_pinmux_set_tristate(TEGRA_PINGROUP_CSUS, TEGRA_TRI_TRISTATE);
 	tegra_camera_disable(dev);
+	power = false;
+	mutex_unlock(&mtx);
 	return 0;
 }
 
