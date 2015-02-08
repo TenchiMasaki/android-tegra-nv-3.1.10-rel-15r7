@@ -652,7 +652,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		unsigned int freq;
 		is_suspended = false;
 		tegra_cpu_edp_init(true);
-		tegra_cpu_set_speed_cap(&freq);
+		//tegra_cpu_set_speed_cap(&freq);
 		pr_info("Tegra cpufreq resume: restoring frequency to %d kHz\n",
 			freq);
 	}
