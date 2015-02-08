@@ -291,14 +291,11 @@ static void suspend(struct work_struct *work)
 	//wake_unlock_all(WAKE_LOCK_SUSPEND);
 //	msleep(5000);
 
-
-/*
 	if (has_wake_lock(WAKE_LOCK_SUSPEND)) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: abort suspend\n");
 		return;
 	}
-*/
 
 	entry_event_num = current_event_num;
 	//pr_info("suspend: unlocked all");
