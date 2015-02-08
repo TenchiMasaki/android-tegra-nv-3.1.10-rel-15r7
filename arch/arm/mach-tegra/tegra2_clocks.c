@@ -2799,7 +2799,7 @@ static void tegra2_init_one_clock(struct clk *c)
  */
 
 static struct cpufreq_frequency_table freq_table_750MHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2808,7 +2808,7 @@ static struct cpufreq_frequency_table freq_table_750MHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2820,7 +2820,7 @@ static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2834,7 +2834,7 @@ static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
 
 #ifdef CONFIG_TEGRA_ENABLE_OC
 static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2848,7 +2848,7 @@ static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2863,7 +2863,7 @@ static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2879,7 +2879,7 @@ static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
-	{ 0, 216000 },
+	{ 0, 100000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2954,6 +2954,7 @@ static int tegra_clk_suspend(void)
 	unsigned long off, i;
 	u32 *ctx = clk_rst_suspend;
 
+	pr_debug("%s: 1", __func__);
 	*ctx++ = clk_readl(OSC_CTRL) & OSC_CTRL_MASK;
 	*ctx++ = clk_readl(tegra_pll_p_out1.reg);
 	*ctx++ = clk_readl(tegra_pll_p_out3.reg);
@@ -2980,7 +2981,8 @@ static int tegra_clk_suspend(void)
 	*ctx++ = clk_readl(tegra_clk_pclk.reg);
 
 	*ctx++ = clk_readl(tegra_clk_audio.reg);
-
+	
+	pr_debug("%s: 2", __func__);
 	for (off = PERIPH_CLK_SOURCE_I2S1; off <= PERIPH_CLK_SOURCE_OSC;
 			off += 4) {
 		if (off == PERIPH_CLK_SOURCE_EMC)
@@ -2988,10 +2990,13 @@ static int tegra_clk_suspend(void)
 		*ctx++ = clk_readl(off);
 	}
 
+
+	pr_debug("%s: 3", __func__);
 	off = RST_DEVICES;
 	for (i = 0; i < RST_DEVICES_NUM; i++, off += 4)
 		*ctx++ = clk_readl(off);
 
+	pr_debug("%s: 4", __func__);
 	off = CLK_OUT_ENB;
 	for (i = 0; i < CLK_OUT_ENB_NUM; i++, off += 4)
 		*ctx++ = clk_readl(off);
@@ -3000,6 +3005,7 @@ static int tegra_clk_suspend(void)
 	*ctx++ = clk_readl(CLK_MASK_ARM);
 
 	BUG_ON(ctx - clk_rst_suspend != ARRAY_SIZE(clk_rst_suspend));
+	pr_debug("%s: 5", __func__);
 
 	return 0;
 }
@@ -3012,6 +3018,7 @@ static void tegra_clk_resume(void)
 	u32 pll_p_out12, pll_p_out34;
 	u32 pll_m_out1, pll_a_out0, pll_c_out1;
 
+	pr_debug("%s: 1", __func__);
 	val = clk_readl(OSC_CTRL) & ~OSC_CTRL_MASK;
 	val |= *ctx++;
 	clk_writel(val, OSC_CTRL);
@@ -3022,6 +3029,7 @@ static void tegra_clk_resume(void)
 	 * pllp, and pllu are already configured and enabled.
 	 */
 
+	pr_debug("%s: 2", __func__);
 	val = PLL_OUT_CLKEN | PLL_OUT_RESET_DISABLE;
 	val |= val << 16;
 	pll_p_out12 = *ctx++;
@@ -3029,6 +3037,7 @@ static void tegra_clk_resume(void)
 	pll_p_out34 = *ctx++;
 	clk_writel(pll_p_out34 | val, tegra_pll_p_out3.reg);
 
+	pr_debug("%s: 3", __func__);
 	clk_writel(*ctx++, tegra_pll_c.reg + PLL_BASE);
 	clk_writel(*ctx++, tegra_pll_c.reg + PLL_MISC(&tegra_pll_c));
 	clk_writel(*ctx++, tegra_pll_a.reg + PLL_BASE);
@@ -3041,6 +3050,7 @@ static void tegra_clk_resume(void)
 	clk_writel(*ctx++, tegra_pll_u.reg + PLL_MISC(&tegra_pll_u));
 	udelay(1000);
 
+	pr_debug("%s: 4", __func__);
 	val = PLL_OUT_CLKEN | PLL_OUT_RESET_DISABLE;
 	pll_m_out1 = *ctx++;
 	clk_writel(pll_m_out1 | val, tegra_pll_m_out1.reg);
@@ -3064,6 +3074,7 @@ static void tegra_clk_resume(void)
 	clk_writel(0x77f01bfful, CLK_OUT_ENB + 8);
 	wmb();
 
+	pr_debug("%s: 5", __func__);
 	for (off = PERIPH_CLK_SOURCE_I2S1; off <= PERIPH_CLK_SOURCE_OSC;
 			off += 4) {
 		if (off == PERIPH_CLK_SOURCE_EMC)
@@ -3072,11 +3083,13 @@ static void tegra_clk_resume(void)
 	}
 	wmb();
 
+	pr_debug("%s: 6", __func__);
 	off = RST_DEVICES;
 	for (i = 0; i < RST_DEVICES_NUM; i++, off += 4)
 		clk_writel(*ctx++, off);
 	wmb();
 
+	pr_debug("%s: 7", __func__);
 	off = CLK_OUT_ENB;
 	for (i = 0; i < CLK_OUT_ENB_NUM; i++, off += 4)
 		clk_writel(*ctx++, off);
@@ -3091,6 +3104,7 @@ static void tegra_clk_resume(void)
 	clk_writel(pll_m_out1, tegra_pll_m_out1.reg);
 	clk_writel(pll_a_out0, tegra_pll_a_out0.reg);
 	clk_writel(pll_c_out1, tegra_pll_c_out1.reg);
+	pr_debug("%s: 8", __func__);
 }
 
 #else
