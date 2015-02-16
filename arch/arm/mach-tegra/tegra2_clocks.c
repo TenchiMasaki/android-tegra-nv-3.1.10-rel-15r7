@@ -2799,7 +2799,7 @@ static void tegra2_init_one_clock(struct clk *c)
  */
 
 static struct cpufreq_frequency_table freq_table_750MHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2808,7 +2808,7 @@ static struct cpufreq_frequency_table freq_table_750MHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2820,7 +2820,7 @@ static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2834,7 +2834,7 @@ static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
 
 #ifdef CONFIG_TEGRA_ENABLE_OC
 static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2848,7 +2848,7 @@ static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2863,7 +2863,7 @@ static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
@@ -2879,7 +2879,7 @@ static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
 };
 
 static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
-	{ 0, 100000 },
+	{ 0, 216000 },
 	{ 1, 312000 },
 	{ 2, 456000 },
 	{ 3, 608000 },
