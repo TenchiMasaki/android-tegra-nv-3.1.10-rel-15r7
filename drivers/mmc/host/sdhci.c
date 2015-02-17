@@ -1352,6 +1352,7 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (host->version >= SDHCI_SPEC_300) {
 		u16 clk, ctrl_2;
+		unsigned int clock;
 
 		/* In case of UHS-I modes, set High Speed Enable */
 		if (((ios->timing == MMC_TIMING_UHS_SDR50) ||
@@ -2374,6 +2375,16 @@ int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 	if (host->irq)
 		disable_irq(host->irq);
 
+	return 0;
+
+err_suspend_host:
+	/* Set the re-tuning expiration flag */
+	if ((host->version >= SDHCI_SPEC_300) && host->tuning_count &&
+	    (host->tuning_mode == SDHCI_TUNING_MODE_1))
+		host->flags |= SDHCI_NEEDS_RETUNING;
+
+	sdhci_enable_card_detection(host);
+
 	return ret;
 }
 
@@ -2471,6 +2482,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	u32 max_current_caps;
 	unsigned int ocr_avail;
 	int ret;
+	int rc;
 
 	WARN_ON(host == NULL);
 	if (host == NULL)

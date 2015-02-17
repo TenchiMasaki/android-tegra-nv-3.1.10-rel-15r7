@@ -32,6 +32,8 @@
 #include <mach/io_dpd.h>
 
 #include "sdhci-pltfm.h"
+#include <../gpio-names.h>
+#include "../debug_mmc.h"
 
 #define SDHCI_VENDOR_CLOCK_CNTRL	0x100
 #define SDHCI_VENDOR_CLOCK_CNTRL_SDMMC_CLK	0x1
@@ -404,6 +406,15 @@ static void tegra_sdhci_set_clk_rate(struct sdhci_host *sdhci,
 			clk_rate = tegra_sdhost_std_freq;
 		else
 			clk_rate = clock;
+
+		/*
+		 * In SDR50 mode, run the sdmmc controller at 208MHz to ensure
+		 * the core voltage is at 1.2V. If the core voltage is below 1.2V, CRC
+		 * errors would occur during data transfers.
+		 */
+		if ((sdhci->mmc->ios.timing == MMC_TIMING_UHS_SDR50) &&
+			(clk_rate == tegra_sdhost_std_freq))
+			clk_rate <<= 1;
 	}
 
 	if (tegra_host->max_clk_limit &&
@@ -425,13 +436,13 @@ static void tegra_3x_sdhci_set_card_clock(struct sdhci_host *sdhci, unsigned int
 	if (clock && clock == sdhci->clock)
 		return;
 
-	/*
-	 * Disable the card clock before disabling the internal
-	 * clock to avoid abnormal clock waveforms.
-	 */
-	clk = sdhci_readw(sdhci, SDHCI_CLOCK_CONTROL);
-	clk &= ~SDHCI_CLOCK_CARD_EN;
-	sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
+        /*
+         * Disable the card clock before disabling the internal
+         * clock to avoid abnormal clock waveforms.
+         */
+        clk = sdhci_readw(sdhci, SDHCI_CLOCK_CONTROL);
+        clk &= ~SDHCI_CLOCK_CARD_EN;
+        sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
 	sdhci_writew(sdhci, 0, SDHCI_CLOCK_CONTROL);
 
 	if (clock == 0)
@@ -547,6 +558,11 @@ static int tegra_sdhci_signal_voltage_switch(struct sdhci_host *sdhci,
 	unsigned int rc = 0;
 	u16 clk, ctrl;
 	unsigned int val;
+
+	/* Switch OFF the card clock to prevent glitches on the clock line */
+	clk = sdhci_readw(sdhci, SDHCI_CLOCK_CONTROL);
+	clk &= ~SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(sdhci, clk, SDHCI_CLOCK_CONTROL);
 
 	ctrl = sdhci_readw(sdhci, SDHCI_HOST_CONTROL2);
 	if (signal_voltage == MMC_SIGNAL_VOLTAGE_180) {
@@ -868,6 +884,37 @@ static int tegra_sdhci_suspend(struct sdhci_host *sdhci, pm_message_t state)
 		}
 	}
 
+	if (!strcmp(mmc_hostname(sdhci->mmc), "mmc0")) {
+                MMC_printk("%s: pull up data pin", mmc_hostname(sdhci->mmc));
+
+                tegra_gpio_enable(TEGRA_GPIO_PAA0);
+                tegra_gpio_enable(TEGRA_GPIO_PAA1);
+                tegra_gpio_enable(TEGRA_GPIO_PAA2);
+                tegra_gpio_enable(TEGRA_GPIO_PAA3);
+                tegra_gpio_enable(TEGRA_GPIO_PAA4);
+                tegra_gpio_enable(TEGRA_GPIO_PAA5);
+                tegra_gpio_enable(TEGRA_GPIO_PAA6);
+                tegra_gpio_enable(TEGRA_GPIO_PAA7);
+
+                gpio_request(TEGRA_GPIO_PAA0, "PAA0");
+                gpio_request(TEGRA_GPIO_PAA1, "PAA1");
+                gpio_request(TEGRA_GPIO_PAA2, "PAA2");
+                gpio_request(TEGRA_GPIO_PAA3, "PAA3");
+                gpio_request(TEGRA_GPIO_PAA4, "PAA4");
+                gpio_request(TEGRA_GPIO_PAA5, "PAA5");
+                gpio_request(TEGRA_GPIO_PAA6, "PAA6");
+                gpio_request(TEGRA_GPIO_PAA7, "PAA7");
+
+                gpio_direction_output(TEGRA_GPIO_PAA0, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA1, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA2, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA3, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA4, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA5, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA6, 1);
+                gpio_direction_output(TEGRA_GPIO_PAA7, 1);
+        }
+
 	return 0;
 }
 
@@ -898,6 +945,19 @@ static int tegra_sdhci_resume(struct sdhci_host *sdhci)
 		sdhci->pwr = 0;
 	}
 
+	if (!strcmp(mmc_hostname(sdhci->mmc), "mmc0")) {
+                MMC_printk("%s: disable data pin", mmc_hostname(sdhci->mmc));
+
+                tegra_gpio_disable(TEGRA_GPIO_PAA0);
+                tegra_gpio_disable(TEGRA_GPIO_PAA1);
+                tegra_gpio_disable(TEGRA_GPIO_PAA2);
+                tegra_gpio_disable(TEGRA_GPIO_PAA3);
+                tegra_gpio_disable(TEGRA_GPIO_PAA4);
+                tegra_gpio_disable(TEGRA_GPIO_PAA5);
+                tegra_gpio_disable(TEGRA_GPIO_PAA6);
+                tegra_gpio_disable(TEGRA_GPIO_PAA7);
+        }
+
 	return 0;
 }
 
@@ -908,9 +968,6 @@ static struct sdhci_ops tegra_sdhci_ops = {
 	.read_w     = tegra_sdhci_readw,
 	.write_l    = tegra_sdhci_writel,
 	.platform_8bit_width = tegra_sdhci_8bit,
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-	.set_card_clock = tegra_3x_sdhci_set_card_clock,
-#endif
 	.set_clock  = tegra_sdhci_set_clock,
 	.suspend    = tegra_sdhci_suspend,
 	.resume     = tegra_sdhci_resume,
@@ -1261,7 +1318,11 @@ static struct platform_driver sdhci_tegra_driver = {
 
 static int __init sdhci_tegra_init(void)
 {
-	return platform_driver_register(&sdhci_tegra_driver);
+	printk(KERN_INFO "%s+ #####\n", __func__);
+	int ret = 0;
+	ret = platform_driver_register(&sdhci_tegra_driver);
+	printk(KERN_INFO "%s- #####\n", __func__);
+	return ret;
 }
 module_init(sdhci_tegra_init);
 
