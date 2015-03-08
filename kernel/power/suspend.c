@@ -8,7 +8,7 @@
  * This file is released under the GPLv2.
  */
 
-#define DEBUG 1
+// #define DEBUG 1
 
 #include <linux/string.h>
 #include <linux/delay.h>

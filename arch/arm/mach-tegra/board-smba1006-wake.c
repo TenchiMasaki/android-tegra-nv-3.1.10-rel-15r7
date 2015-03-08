@@ -26,7 +26,7 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
-#define DEBUG 1
+// #define DEBUG 1
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
