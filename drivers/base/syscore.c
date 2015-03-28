@@ -5,7 +5,7 @@
  *
  *  This file is released under the GPLv2.
  */
-#define DEBUG 1
+// #define DEBUG 1
 #include <linux/syscore_ops.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
