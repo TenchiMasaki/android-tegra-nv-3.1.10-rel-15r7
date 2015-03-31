@@ -354,11 +354,11 @@ static struct tegra_suspend_platform_data smba_suspend_data = {
          * Check power on time and crystal oscillator start time
          * for appropriate settings.
          */
-        .cpu_timer	= 3000,  //2000 ok 35min, 3000 def ok, 5000=1min, 1500 4min, 2500 5min
-        .cpu_off_timer	= 5000, //100, 0, 200, 1000=5min, 1500 ok=25min, 2000=15min, 1700=3min no reset, 1400=4min no reset, 5000=3hr, 7000=45min, 4000=1hr, 6000=5min, 4500 <30min
+        .cpu_timer	= 2000,  //2000 ok 35min, 3000 def ok, 5000=1min, 1500 4min, 2500 5min
+        .cpu_off_timer	= 100, //100, 0, 200, 1000=5min, 1500 ok=25min, 2000=15min, 1700=3min no reset, 1400=4min no reset, 5000=3hr, 7000=45min, 4000=1hr, 6000=5min, 4500 <30min
 		.suspend_mode   = TEGRA_SUSPEND_LP0,
         .core_timer	= 0x7e7e, //7e7e def ok, 9e9e=9min, 5e5e ok 37min, 3e3e 10min
-        .core_off_timer = 0x7f, //0xf, paz 0=0.5days, 5f=2.5days, 7f ok 7min, 9f 6min, 6f 20min, 5f 20min, 3f 8min, 8f=25min, 88=25min, 78=5min, 8b 25min
+        .core_off_timer = 0xf, //0xf, paz 0=0.5days, 5f=2.5days, 7f ok 7min, 9f 6min, 6f 20min, 5f 20min, 3f 8min, 8f=25min, 88=25min, 78=5min, 8b 25min
         .corereq_high   = false,
         .sysclkreq_high = true,
         .board_suspend = smba_board_suspend,
