@@ -2558,7 +2558,7 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("mpe",	"mpe",			NULL,	60,	0x170,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #else
 	PERIPH_CLK("epp",	"epp",			NULL,	19,	0x16c,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
-	PERIPH_CLK("mpe",	"mpe",			NULL,	60,	0x170,	0x31E,	400000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
+	PERIPH_CLK("mpe",	"mpe",			NULL,	60,	0x170,	0x31E,	350000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 #endif
 	PERIPH_CLK("host1x",	"host1x",		NULL,	28,	0x180,	0x31E,	166000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 	PERIPH_CLK("cve",	"cve",			NULL,	49,	0x140,	0x31E,	250000000, mux_pllp_plld_pllc_clkm,	MUX | DIV_U71), /* requires min voltage */
@@ -2743,7 +2743,7 @@ static struct tegra_sku_rate_limit sku_limits[] =
 
 	RATE_LIMIT("vde",   300000000, 0x04, 0x7, 0x08, 0x0F, 0x10, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("3d",    400000000, 0x04, 0x7, 0x08, 0x0F, 0x10, 0x14, 0x17, 0x18, 0x1B, 0x1C),
-	RATE_LIMIT("mpe",   400000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
+	RATE_LIMIT("mpe",   350000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 
 	RATE_LIMIT("host1x",	108000000, 0x0F),
 	RATE_LIMIT("virt_sclk",	400000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
