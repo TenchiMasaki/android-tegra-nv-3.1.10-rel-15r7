@@ -4,7 +4,7 @@
  * This code is licenced under the GPL.
  */
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #include <linux/proc_fs.h>
 #include <linux/smp.h>
