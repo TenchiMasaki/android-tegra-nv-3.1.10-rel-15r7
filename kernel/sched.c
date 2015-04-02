@@ -6289,12 +6289,6 @@ static void migrate_tasks(unsigned int dead_cpu)
 	 */
 	rq->stop = NULL;
 
-	/*
-	 * Ensure rt_rq is not throttled so its threads can be migrated using
-	 * pick_next_task_rt
-	 */
-	rq->rt.rt_throttled = 0;
-
 	for ( ; ; ) {
 		/*
 		 * There's this thread running, bail when that's the only
@@ -8258,7 +8252,7 @@ void __init sched_init(void)
 	atomic_set(&nohz.load_balancer, nr_cpu_ids);
 	atomic_set(&nohz.first_pick_cpu, nr_cpu_ids);
 	atomic_set(&nohz.second_pick_cpu, nr_cpu_ids);
-	//nohz.next_balance = jiffies;
+	nohz.next_balance = jiffies;
 #endif
 	/* May be allocated at isolcpus cmdline parse time */
 	if (cpu_isolated_map == NULL)
