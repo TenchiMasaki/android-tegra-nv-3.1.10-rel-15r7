@@ -96,7 +96,7 @@ static int	audit_nlk_pid;
 /* If audit_rate_limit is non-zero, limit the rate of sending audit records
  * to that number per second.  This prevents DoS attacks, but results in
  * audit records being dropped. */
-static int	audit_rate_limit = 20;
+static int	audit_rate_limit = 0;
 
 /* Number of outstanding audit_buffers allowed. */
 static int	audit_backlog_limit = 64;
@@ -320,8 +320,8 @@ static int audit_do_config_change(char *function_name, int *to_change,
 static int audit_set_rate_limit(int limit, uid_t loginuid, u32 sessionid,
 				u32 sid)
 {
-	return audit_do_config_change("audit_rate_limit", &audit_rate_limit,
-				      limit, loginuid, sessionid, sid);
+	return 0; /* audit_do_config_change("audit_rate_limit", &audit_rate_limit,
+				      limit, loginuid, sessionid, sid); */
 }
 
 static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sessionid,
