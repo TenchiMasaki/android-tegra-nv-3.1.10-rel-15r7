@@ -606,7 +606,7 @@ int tegra_suspended_target(unsigned int target_freq)
 	/* apply only "hard" caps */
 	new_speed = tegra_throttle_governor_speed(new_speed);
 	new_speed = edp_governor_speed(new_speed);
-	new_speed = user_cap_speed(new_speed);
+
 	return tegra_update_cpu_speed(new_speed);
 }
 
@@ -646,7 +646,6 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		pr_info("Tegra cpufreq suspend: setting frequency to %d kHz\n",
 			freq_table[suspend_index].frequency);
 		tegra_update_cpu_speed(freq_table[suspend_index].frequency);
-		tegra_suspended_target(freq_table[suspend_index].frequency);
 		tegra_auto_hotplug_governor(
 			freq_table[suspend_index].frequency, true);
 	} else if (event == PM_POST_SUSPEND) {
