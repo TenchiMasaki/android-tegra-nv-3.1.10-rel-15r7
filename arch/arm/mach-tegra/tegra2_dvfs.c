@@ -64,7 +64,8 @@ static const int cpu_millivolts[MAX_DVFS_FREQS] =
 
 static const int cpu_speedo_nominal_millivolts[] =
 /* spedo_id  0,    1,    2 */
-	{ 1100, 1025, 1125 };
+	{ 1300, 1225, 1325 }; // 25+ reboots
+// 20 reboots	{ 1200, 1125, 1225 };
 
 static const int core_speedo_nominal_millivolts[] =
 /* spedo_id  0,    1,    2 */
