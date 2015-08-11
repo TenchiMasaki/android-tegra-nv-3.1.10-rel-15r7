@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2014 XPerience(R) Project
+/*
  * fs/f2fs/hash.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -42,8 +44,7 @@ static void TEA_transform(unsigned int buf[4], unsigned int const in[])
 	buf[1] += b1;
 }
 
-static void str2hashbuf(const unsigned char *msg, size_t len,
-				unsigned int *buf, int num)
+static void str2hashbuf(const char *msg, size_t len, unsigned int *buf, int num)
 {
 	unsigned pad, val;
 	int i;
@@ -70,14 +71,12 @@ static void str2hashbuf(const unsigned char *msg, size_t len,
 		*buf++ = pad;
 }
 
-f2fs_hash_t f2fs_dentry_hash(const struct qstr *name_info)
+f2fs_hash_t f2fs_dentry_hash(const char *name, size_t len)
 {
 	__u32 hash;
 	f2fs_hash_t f2fs_hash;
-	const unsigned char *p;
+	const char *p;
 	__u32 in[8], buf[4];
-	const unsigned char *name = name_info->name;
-	size_t len = name_info->len;
 
 	if ((len <= 2) && (name[0] == '.') &&
 		(name[1] == '.' || name[1] == '\0'))

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2014 XPerience(R) Project
+/*
  * fs/f2fs/gc.h
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
@@ -20,7 +22,7 @@
 #define LIMIT_FREE_BLOCK	40 /* percentage over invalid + free space */
 
 /* Search max. number of dirty segments to select a victim segment */
-#define DEF_MAX_VICTIM_SEARCH 4096 /* covers 8GB */
+#define MAX_VICTIM_SEARCH	20
 
 struct f2fs_gc_kthread {
 	struct task_struct *f2fs_gc_task;
@@ -35,12 +37,10 @@ struct f2fs_gc_kthread {
 	unsigned int gc_idle;
 };
 
-struct gc_inode_list {
-	struct list_head ilist;
-	struct radix_tree_root iroot;
+struct inode_entry {
+	struct list_head list;
+	struct inode *inode;
 };
-
-extern struct kmem_cache *inode_entry_slab;
 
 /*
  * inline functions
@@ -93,7 +93,7 @@ static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
 	block_t invalid_user_blocks = sbi->user_block_count -
 					written_block_count(sbi);
 	/*
-	 * Background GC is triggered with the following conditions.
+	 * Background GC is triggered with the following condition.
 	 * 1. There are a number of invalid blocks.
 	 * 2. There is not enough free space.
 	 */
