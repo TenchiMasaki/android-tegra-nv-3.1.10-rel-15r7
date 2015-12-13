@@ -40,7 +40,7 @@
 #include <mach/clk.h>
 #include <mach/pinmux.h>
 
-#define TEGRA_I2C_TIMEOUT			(msecs_to_jiffies(1000))
+#define TEGRA_I2C_TIMEOUT			(msecs_to_jiffies(5000))
 #define TEGRA_I2C_RETRIES			3
 #define BYTES_PER_FIFO_WORD			4
 
