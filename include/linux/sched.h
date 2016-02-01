@@ -1230,6 +1230,7 @@ struct task_struct {
 	int on_cpu;
 #endif
 	int on_rq;
+	unsigned long cpu_power;
 
 	int prio, static_prio, normal_prio;
 	unsigned int rt_priority;
