@@ -13,16 +13,17 @@
  * Note: Only YAFFS headers are LGPL, YAFFS C code is covered by GPL.
  */
 
-#ifndef __NAMEVAL_H__
-#define __NAMEVAL_H__
+#ifndef __YAFFS_MTDIF2_H__
+#define __YAFFS_MTDIF2_H__
 
-#include "yportenv.h"
+#include "yaffs_guts.h"
+int nandmtd2_write_chunk_tags(struct yaffs_dev *dev, int nand_chunk,
+			      const u8 * data,
+			      const struct yaffs_ext_tags *tags);
+int nandmtd2_read_chunk_tags(struct yaffs_dev *dev, int nand_chunk,
+			     u8 * data, struct yaffs_ext_tags *tags);
+int nandmtd2_mark_block_bad(struct yaffs_dev *dev, int block_no);
+int nandmtd2_query_block(struct yaffs_dev *dev, int block_no,
+			 enum yaffs_block_state *state, u32 * seq_number);
 
-int nval_del(char *xb, int xb_size, const YCHAR * name);
-int nval_set(char *xb, int xb_size, const YCHAR * name, const char *buf,
-	     int bsize, int flags);
-int nval_get(const char *xb, int xb_size, const YCHAR * name, char *buf,
-	     int bsize);
-int nval_list(const char *xb, int xb_size, char *buf, int bsize);
-int nval_hasvalues(const char *xb, int xb_size);
 #endif
