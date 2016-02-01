@@ -574,6 +574,12 @@ config SENSORS_MMC31XX
         ---help---
         Say Y here to get support for MEMSIC magnetic sensor.
 
+config UID_CPUTIME
+	tristate "Per-UID cpu time statistics"
+	depends on PROFILING
+	help
+	  Per UID based cpu time statistics exported to /proc/uid_cputime
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

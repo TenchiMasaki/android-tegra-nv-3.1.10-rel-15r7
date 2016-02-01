@@ -60,3 +60,4 @@ obj-$(CONFIG_TEGRA_BB_SUPPORT)	+= tegra-baseband/
 obj-$(CONFIG_MAX1749_VIBRATOR)	+= max1749.o
 obj-$(CONFIG_MEMSIC_ECOMPASS)	+= mecs.o
 obj-$(CONFIG_SENSORS_MMC31XX)   += mmc31xx.o
+obj-$(CONFIG_UID_CPUTIME)	+= uid_cputime.o
