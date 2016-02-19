@@ -385,6 +385,13 @@ static void restore_cpu_complex(u32 mode)
     pr_debug("%s: 0", __func__);
 	BUG_ON(cpu != 0);
     pr_debug("%s: 1", __func__);
+	/* restore original PLL settings */
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	writel(tegra_sctx.pllp_misc, clk_rst + CLK_RESET_PLLP_MISC);
+	writel(tegra_sctx.pllp_base, clk_rst + CLK_RESET_PLLP_BASE);
+	writel(tegra_sctx.pllp_outa, clk_rst + CLK_RESET_PLLP_OUTA);
+	writel(tegra_sctx.pllp_outb, clk_rst + CLK_RESET_PLLP_OUTB);
+#endif
 	/* Is CPU complex already running on PLLX? */
 	reg = readl(clk_rst + CLK_RESET_CCLK_BURST);
 	policy = (reg >> CLK_RESET_CCLK_BURST_POLICY_SHIFT) & 0xF;
@@ -606,6 +613,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 		mode |= TEGRA_POWER_PWRREQ_OE;
 	mode &= ~TEGRA_POWER_EFFECT_LP0;
 	writel(mode, pmc + PMC_CTRL);
+	mode |= flags;
 
     pr_debug("%s: 2", __func__);
 	tegra_cluster_switch_time(flags, tegra_cluster_switch_time_id_start);
@@ -618,7 +626,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 		trace_cpu_cluster(POWER_CPU_CLUSTER_START);
 		set_power_timers(pdata->cpu_timer, 0,
 			clk_get_rate_all_locked(tegra_pclk));
-		tegra_cluster_switch_prolog(flags);
+		tegra_cluster_switch_prolog(mode);
 	} else {
 		set_power_timers(pdata->cpu_timer, pdata->cpu_off_timer,
 			clk_get_rate_all_locked(tegra_pclk));
@@ -629,7 +637,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 	pr_debug("%s: 5", __func__);
 	cpu_complex_pm_enter();
 	pr_debug("%s: 6", __func__);
-	suspend_cpu_complex(flags);
+	suspend_cpu_complex(mode);
 	pr_debug("%s: 7", __func__);
 	tegra_cluster_switch_time(flags, tegra_cluster_switch_time_id_prolog);
 	pr_debug("%s: 8", __func__);
@@ -651,7 +659,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 	pr_debug("%s: 12", __func__);
 	tegra_cluster_switch_time(flags, tegra_cluster_switch_time_id_switch);
 	pr_debug("%s: 13", __func__);
-	restore_cpu_complex(flags);
+	restore_cpu_complex(mode);
 	pr_debug("%s: 14", __func__);
 	cpu_complex_pm_exit();
 	pr_debug("%s: 15", __func__);
@@ -660,7 +668,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 		tegra_lp2_set_trigger(0);
 	pr_debug("%s: 16", __func__);
 	if (flags & TEGRA_POWER_CLUSTER_MASK) {
-		tegra_cluster_switch_epilog(flags);
+		tegra_cluster_switch_epilog(mode);
 		trace_cpu_cluster(POWER_CPU_CLUSTER_DONE);
 	}
 	tegra_cluster_switch_time(flags, tegra_cluster_switch_time_id_epilog);
@@ -958,7 +966,7 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 	else
 		tegra_sleep_core(mode, PLAT_PHYS_OFFSET - PAGE_OFFSET);
     pr_debug("%s: 19", __func__);
-	tegra_init_cache(true);
+	tegra_init_cache(false);
 	pr_debug("%s: 20", __func__);
 	if (mode == TEGRA_SUSPEND_LP0) {
 		tegra_cpu_reset_handler_restore();
@@ -1241,7 +1249,16 @@ out:
 	pr_debug("%s: 1", __func__);
 	/* Always enable CPU power request; just normal polarity is supported */
 	reg = readl(pmc + PMC_CTRL);
+#if 1
+	/* FIXME: why read error? */
+	if (reg & TEGRA_POWER_CPU_PWRREQ_POLARITY) {
+		printk(KERN_ERR "%s: PMC_CTRL read err (0x%08x) L:%d\n",
+			__func__, reg, __LINE__);
+		reg &= ~TEGRA_POWER_CPU_PWRREQ_POLARITY;
+	}
+#else
 	BUG_ON(reg & TEGRA_POWER_CPU_PWRREQ_POLARITY);
+#endif
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	pmc_32kwritel(reg, PMC_CTRL);
 	pr_debug("%s: 2", __func__);
