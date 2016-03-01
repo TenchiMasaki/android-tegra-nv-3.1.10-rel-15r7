@@ -550,4 +550,15 @@ config TEGRA_LP1_950
 	help
 		Enable support for LP1 Core voltage to set to lowest
 
+config SMBA1006_HARDBOOT_RECOVERY
+
+	bool "Reboot to recovery partition when using Kexec-hardboot"
+	depends on ARCH_TEGRA_2x_SOC && MACH_SMBA1006
+	depends on KEXEC_HARDBOOT
+	default n
+	help
+	  Reboot with the recovery kernel since the boot kernel decompressor may
+	  not support the hardboot jump.
+
 endif
+
