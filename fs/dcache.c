@@ -37,7 +37,6 @@
 #include <linux/rculist_bl.h>
 #include <linux/prefetch.h>
 #include "internal.h"
-#include "mount.h"
 
 /*
  * Usage:
@@ -1428,23 +1427,6 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 }
 EXPORT_SYMBOL(d_alloc_root);
 
-struct dentry *d_make_root(struct inode *root_inode)
-{
-	struct dentry *res = NULL;
-
-	if (root_inode) {
-		static const struct qstr name = { .name = "/", .len = 1 };
-
-		res = __d_alloc(root_inode->i_sb, &name);
-		if (res)
-			d_instantiate(res, root_inode);
-		else
-			iput(root_inode);
-	}
-	return res;
-}
-EXPORT_SYMBOL(d_make_root);
-
 static struct dentry * __d_find_any_alias(struct inode *inode)
 {
 	struct dentry *alias;
@@ -1456,14 +1438,7 @@ static struct dentry * __d_find_any_alias(struct inode *inode)
 	return alias;
 }
 
-/**
- * d_find_any_alias - find any alias for a given inode
- * @inode: inode to find an alias for
- *
- * If any aliases exist for the given inode, take and return a
- * reference for one of them.  If no aliases exist, return %NULL.
- */
-struct dentry *d_find_any_alias(struct inode *inode)
+static struct dentry * d_find_any_alias(struct inode *inode)
 {
 	struct dentry *de;
 
@@ -1472,7 +1447,7 @@ struct dentry *d_find_any_alias(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 	return de;
 }
-EXPORT_SYMBOL(d_find_any_alias);
+
 
 /**
  * d_obtain_alias - find or allocate a dentry for a given inode
@@ -2444,8 +2419,9 @@ static int prepend_path(const struct path *path,
 
 		if (dentry == vfsmnt->mnt_root || IS_ROOT(dentry)) {
 			/* Global root? */
-			if (!mnt_has_parent(vfsmnt))
+			if (vfsmnt->mnt_parent == vfsmnt) {
 				goto global_root;
+			}
 			dentry = vfsmnt->mnt_mountpoint;
 			vfsmnt = vfsmnt->mnt_parent;
 			continue;
@@ -2835,6 +2811,31 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 
 	return result;
 }
+
+int path_is_under(struct path *path1, struct path *path2)
+{
+	struct vfsmount *mnt = path1->mnt;
+	struct dentry *dentry = path1->dentry;
+	int res;
+
+	br_read_lock(vfsmount_lock);
+	if (mnt != path2->mnt) {
+		for (;;) {
+			if (mnt->mnt_parent == mnt) {
+				br_read_unlock(vfsmount_lock);
+				return 0;
+			}
+			if (mnt->mnt_parent == path2->mnt)
+				break;
+			mnt = mnt->mnt_parent;
+		}
+		dentry = mnt->mnt_mountpoint;
+	}
+	res = is_subdir(dentry, path2->dentry);
+	br_read_unlock(vfsmount_lock);
+	return res;
+}
+EXPORT_SYMBOL(path_is_under);
 
 void d_genocide(struct dentry *root)
 {
