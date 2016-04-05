@@ -3083,6 +3083,8 @@ static void tegra_clk_resume(void)
 	}
 	wmb();
 
+	udelay(RESET_PROPAGATION_DELAY);
+	
 	pr_debug("%s: 6", __func__);
 	off = RST_DEVICES;
 	for (i = 0; i < RST_DEVICES_NUM; i++, off += 4)
