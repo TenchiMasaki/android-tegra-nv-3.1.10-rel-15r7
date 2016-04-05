@@ -1241,7 +1241,16 @@ out:
 	pr_debug("%s: 1", __func__);
 	/* Always enable CPU power request; just normal polarity is supported */
 	reg = readl(pmc + PMC_CTRL);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	/* FIXME: why read error? */
+	if (reg & TEGRA_POWER_CPU_PWRREQ_POLARITY) {
+		printk(KERN_ERR "%s: PMC_CTRL read err (0x%08x) L:%d\n",
+			__func__, reg, __LINE__);
+		reg &= ~TEGRA_POWER_CPU_PWRREQ_POLARITY;
+	}
+#else
 	BUG_ON(reg & TEGRA_POWER_CPU_PWRREQ_POLARITY);
+#endif
 	reg |= TEGRA_POWER_CPU_PWRREQ_OE;
 	pmc_32kwritel(reg, PMC_CTRL);
 	pr_debug("%s: 2", __func__);
@@ -1251,6 +1260,14 @@ out:
 	__raw_writel(pdata->core_off_timer, pmc + PMC_COREPWROFF_TIMER);
 
 	reg = readl(pmc + PMC_CTRL);
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+	/* FIXME: why read error? */
+	if (!(reg & TEGRA_POWER_CPU_PWRREQ_OE)) {
+		printk(KERN_ERR "%s: PMC_CTRL read err (0x%08x) L:%d\n",
+			__func__, reg, __LINE__);
+		reg |= TEGRA_POWER_CPU_PWRREQ_OE;
+	}
+#endif
 
     pr_debug("%s: 3", __func__);
 	if (!pdata->sysclkreq_high)
