@@ -65,7 +65,7 @@
 
 #define YPROC_ROOT  NULL
 
-#define Y_INIT_TIMER(a)	init_timer_on_stack(a)
+#define Y_INIT_TIMER(a, b, c)	setup_deferrable_timer_on_stack(a, b, c)
 
 #define WRITE_SIZE_STR "writesize"
 #define WRITE_SIZE(mtd) ((mtd)->writesize)
@@ -1674,10 +1674,9 @@ static int yaffs_bg_thread_fn(void *data)
 		if (time_before(expires, now))
 			expires = now + HZ;
 
-		Y_INIT_TIMER(&timer);
+		Y_INIT_TIMER(&timer, yaffs_background_waker,
+				(unsigned long)current);
 		timer.expires = expires + 1;
-		timer.data = (unsigned long)current;
-		timer.function = yaffs_background_waker;
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_timer(&timer);
@@ -2374,19 +2373,17 @@ static int yaffs_internal_read_super_mtd(struct super_block *sb, void *data,
 	return yaffs_internal_read_super(1, sb, data, silent) ? 0 : -EINVAL;
 }
 
-static struct dentry *yaffs_read_super(struct file_system_type *fs,
-			    int flags, const char *dev_name,
-			    void *data)
+static struct dentry *yaffs_mount(struct file_system_type *fs, int flags,
+			const char *dev_name, void *data)
 {
-
 	return mount_bdev(fs, flags, dev_name, data,
-			   yaffs_internal_read_super_mtd);
+		yaffs_internal_read_super_mtd);
 }
 
 static struct file_system_type yaffs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "yaffs",
-	.mount = yaffs_read_super,
+	.mount = yaffs_mount,
 	.kill_sb = kill_block_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };
@@ -2399,7 +2396,7 @@ static int yaffs2_internal_read_super_mtd(struct super_block *sb, void *data,
 	return yaffs_internal_read_super(2, sb, data, silent) ? 0 : -EINVAL;
 }
 
-static struct dentry *yaffs2_read_super(struct file_system_type *fs,
+static struct dentry *yaffs2_mount(struct file_system_type *fs,
 			     int flags, const char *dev_name, void *data)
 {
 	return mount_bdev(fs, flags, dev_name, data,
@@ -2409,7 +2406,7 @@ static struct dentry *yaffs2_read_super(struct file_system_type *fs,
 static struct file_system_type yaffs2_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "yaffs2",
-	.mount = yaffs2_read_super,
+	.mount = yaffs2_mount,
 	.kill_sb = kill_block_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };

@@ -73,10 +73,12 @@ struct nfs_pageio_descriptor {
 
 	struct inode		*pg_inode;
 	const struct nfs_pageio_ops *pg_ops;
+	int			(*pg_doio)(struct nfs_pageio_descriptor *);
 	int 			pg_ioflags;
 	int			pg_error;
 	const struct rpc_call_ops *pg_rpc_callops;
 	struct pnfs_layout_segment *pg_lseg;
+	bool			(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
 };
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
@@ -93,7 +95,7 @@ extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
 			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
-			     const struct nfs_pageio_ops *pg_ops,
+			     int (*doio)(struct nfs_pageio_descriptor *desc),
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,

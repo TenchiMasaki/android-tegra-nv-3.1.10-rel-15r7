@@ -29,7 +29,6 @@
 #define ECRYPTFS_KERNEL_H
 
 #include <keys/user-type.h>
-#include <keys/encrypted-type.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
 #include <linux/namei.h>
@@ -79,47 +78,11 @@ struct ecryptfs_page_crypt_context {
 	} param;
 };
 
-#if defined(CONFIG_ENCRYPTED_KEYS) || defined(CONFIG_ENCRYPTED_KEYS_MODULE)
-static inline struct ecryptfs_auth_tok *
-ecryptfs_get_encrypted_key_payload_data(struct key *key)
-{
-	if (key->type == &key_type_encrypted)
-		return (struct ecryptfs_auth_tok *)
-			(&((struct encrypted_key_payload *)key->payload.data)->payload_data);
-	else
-		return NULL;
-}
-
-static inline struct key *ecryptfs_get_encrypted_key(char *sig)
-{
-	return request_key(&key_type_encrypted, sig, NULL);
-}
-
-#else
-static inline struct ecryptfs_auth_tok *
-ecryptfs_get_encrypted_key_payload_data(struct key *key)
-{
-	return NULL;
-}
-
-static inline struct key *ecryptfs_get_encrypted_key(char *sig)
-{
-	return ERR_PTR(-ENOKEY);
-}
-
-#endif /* CONFIG_ENCRYPTED_KEYS */
-
 static inline struct ecryptfs_auth_tok *
 ecryptfs_get_key_payload_data(struct key *key)
 {
-	struct ecryptfs_auth_tok *auth_tok;
-
-	auth_tok = ecryptfs_get_encrypted_key_payload_data(key);
-	if (!auth_tok)
-		return (struct ecryptfs_auth_tok *)
-			(((struct user_key_payload *)key->payload.data)->data);
-	else
-		return auth_tok;
+	return (struct ecryptfs_auth_tok *)
+		(((struct user_key_payload*)key->payload.data)->data);
 }
 
 #define ECRYPTFS_MAX_KEYSET_SIZE 1024
@@ -309,6 +272,7 @@ struct ecryptfs_mount_crypt_stat {
 #define ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK   0x00000020
 #define ECRYPTFS_GLOBAL_ENCFN_USE_FEK          0x00000040
 #define ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY    0x00000080
+#define ECRYPTFS_NO_NEW_ENCRYPTED	       0x00000100
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
@@ -584,10 +548,9 @@ int ecryptfs_init_crypt_ctx(struct ecryptfs_crypt_stat *crypt_stat);
 int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode);
 int ecryptfs_encrypt_page(struct page *page);
 int ecryptfs_decrypt_page(struct page *page);
-int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
-			    struct inode *ecryptfs_inode);
+int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
-int ecryptfs_new_file_context(struct inode *ecryptfs_inode);
+int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
 void ecryptfs_write_crypt_stat_flags(char *page_virt,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     size_t *written);

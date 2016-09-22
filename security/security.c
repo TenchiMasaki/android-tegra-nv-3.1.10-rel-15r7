@@ -182,12 +182,6 @@ int security_capable(struct user_namespace *ns, const struct cred *cred,
 	return security_ops->capable(cred, ns, cap, SECURITY_CAP_AUDIT);
 }
 
-int security_capable_noaudit(const struct cred *cred, struct user_namespace *ns,
-			     int cap)
-{
-	return security_ops->capable(cred, ns, cap, SECURITY_CAP_NOAUDIT);
-}
-
 int security_real_capable(struct task_struct *tsk, struct user_namespace *ns,
 			  int cap)
 {
@@ -317,8 +311,8 @@ int security_sb_statfs(struct dentry *dentry)
 	return security_ops->sb_statfs(dentry);
 }
 
-int security_sb_mount(const char *dev_name, struct path *path,
-                       const char *type, unsigned long flags, void *data)
+int security_sb_mount(char *dev_name, struct path *path,
+                       char *type, unsigned long flags, void *data)
 {
 	return security_ops->sb_mount(dev_name, path, type, flags, data);
 }
@@ -495,7 +489,7 @@ int security_path_chroot(struct path *path)
 }
 #endif
 
-int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -526,7 +520,7 @@ int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 	return security_ops->inode_symlink(dir, dentry, old_name);
 }
 
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -541,7 +535,7 @@ int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	return security_ops->inode_rmdir(dir, dentry);
 }
 
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+int security_inode_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -576,7 +570,14 @@ int security_inode_permission(struct inode *inode, int mask)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return security_ops->inode_permission(inode, mask);
+	return security_ops->inode_permission(inode, mask, 0);
+}
+
+int security_inode_exec_permission(struct inode *inode, unsigned int flags)
+{
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+	return security_ops->inode_permission(inode, MAY_EXEC, flags);
 }
 
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
@@ -677,6 +678,7 @@ int security_file_permission(struct file *file, int mask)
 
 	return fsnotify_perm(file, mask);
 }
+EXPORT_SYMBOL_GPL(security_file_permission);
 
 int security_file_alloc(struct file *file)
 {
@@ -1155,7 +1157,6 @@ void security_sk_clone(const struct sock *sk, struct sock *newsk)
 {
 	security_ops->sk_clone_security(sk, newsk);
 }
-EXPORT_SYMBOL(security_sk_clone);
 
 void security_sk_classify_flow(struct sock *sk, struct flowi *fl)
 {

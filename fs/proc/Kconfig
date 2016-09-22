@@ -68,14 +68,8 @@ config PROC_PAGE_MONITOR
 	  /proc/kpagecount, and /proc/kpageflags. Disabling these
           interfaces will reduce the size of the kernel by approximately 4kb.
 
-config REPORT_PRESENT_CPUS
+config EXPOSE_VIRTUAL_PID
+	boolean "Expose virtual PID from child namespace in /proc/PID/status"
 	default n
-	depends on PROC_FS && SMP
-	bool "Report present cpus instead of online cpus"
-	help
-	  This is a work around to report Present CPUs instead of Online CPUs.
-	  Some power savings implements use CPU hotplug for power domains.
-	  It is a bug to enable this on a server or other architecture that
-	  uses cpu hotplug in the correct way.
-
-
+	---help---
+		Turn this on to expose virtual PID from child namespace in /proc/PID/status

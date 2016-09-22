@@ -84,6 +84,7 @@ static struct inode *isofs_alloc_inode(struct super_block *sb)
 static void isofs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(isofs_inode_cachep, ISOFS_I(inode));
 }
 
@@ -118,8 +119,8 @@ static void destroy_inodecache(void)
 
 static int isofs_remount(struct super_block *sb, int *flags, char *data)
 {
-	/* we probably want a lot more here */
-	*flags |= MS_RDONLY;
+	if (!(*flags & MS_RDONLY))
+		return -EROFS;
 	return 0;
 }
 
@@ -768,15 +769,6 @@ root_found:
 	 */
 	s->s_maxbytes = 0x80000000000LL;
 
-	/*
-	 * The CDROM is read-only, has no nodes (devices) on it, and since
-	 * all of the files appear to be owned by root, we really do not want
-	 * to allow suid.  (suid or devices will not show up unless we have
-	 * Rock Ridge extensions)
-	 */
-
-	s->s_flags |= MS_RDONLY /* | MS_NODEV | MS_NOSUID */;
-
 	/* Set this for reference. Its not currently used except on write
 	   which we don't have .. */
 
@@ -862,6 +854,7 @@ root_found:
 	sbi->s_utf8 = opt.utf8;
 	sbi->s_nocompress = opt.nocompress;
 	sbi->s_overriderockperm = opt.overriderockperm;
+	mutex_init(&sbi->s_mutex);
 	/*
 	 * It would be incredibly stupid to allow people to mark every file
 	 * on the disk as suid, so we merely allow them to set the default
@@ -1318,7 +1311,7 @@ static int isofs_read_inode(struct inode *inode)
 			inode->i_mode = S_IFDIR | sbi->s_dmode;
 		else
 			inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		inode->i_nlink = 1;	/*
+		set_nlink(inode, 1);	/*
 					 * Set to 1.  We know there are 2, but
 					 * the find utility tries to optimize
 					 * if it is 2, and it screws up.  It is
@@ -1336,7 +1329,7 @@ static int isofs_read_inode(struct inode *inode)
 			 */
 			inode->i_mode = S_IFREG | S_IRUGO | S_IXUGO;
 		}
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
@@ -1526,6 +1519,9 @@ struct inode *isofs_iget(struct super_block *sb,
 static struct dentry *isofs_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data)
 {
+	/* We don't support read-write mounts */
+	if (!(flags & MS_RDONLY))
+		return ERR_PTR(-EACCES);
 	return mount_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
 }
 

@@ -89,7 +89,7 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 		atomic_long_set(&ioc->refcount, 1);
 		atomic_set(&ioc->nr_tasks, 1);
 		spin_lock_init(&ioc->lock);
-		ioc->ioprio_changed = 0;
+		bitmap_zero(ioc->ioprio_changed, IOC_IOPRIO_CHANGED_BITS);
 		ioc->ioprio = 0;
 		ioc->last_waited = 0; /* doesn't matter... */
 		ioc->nr_batch_requests = 0; /* because this is 0 */

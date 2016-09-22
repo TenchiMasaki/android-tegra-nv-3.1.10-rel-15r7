@@ -289,7 +289,7 @@ static struct stats dx_show_leaf(struct dx_hash_info *hinfo, struct ext4_dir_ent
 				while (len--) printk("%c", *name++);
 				ext4fs_dirhash(de->name, de->name_len, &h);
 				printk(":%x.%u ", h.hash,
-				       (unsigned) ((char *) de - base));
+				       ((char *) de - base));
 			}
 			space += EXT4_DIR_REC_LEN(de->name_len);
 			names++;
@@ -585,11 +585,8 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 				(block<<EXT4_BLOCK_SIZE_BITS(dir->i_sb))
 					 + ((char *)de - bh->b_data))) {
-			/* On error, skip the f_pos to the next block. */
-			dir_file->f_pos = (dir_file->f_pos |
-					(dir->i_sb->s_blocksize - 1)) + 1;
-			brelse(bh);
-			return count;
+			/* silently ignore the rest of the block */
+			break;
 		}
 		ext4fs_dirhash(de->name, de->name_len, hinfo);
 		if ((hinfo->hash < start_hash) ||
@@ -1014,7 +1011,7 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir, const struct q
 
 	*err = -ENOENT;
 errout:
-	dxtrace(printk(KERN_DEBUG "%s not found\n", d_name->name));
+	dxtrace(printk(KERN_DEBUG "%s not found\n", name));
 	dx_release (frames);
 	return NULL;
 }
@@ -1038,11 +1035,15 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 			return ERR_PTR(-EIO);
 		}
 		inode = ext4_iget(dir->i_sb, ino);
-		if (inode == ERR_PTR(-ESTALE)) {
-			EXT4_ERROR_INODE(dir,
-					 "deleted inode referenced: %u",
-					 ino);
-			return ERR_PTR(-EIO);
+		if (IS_ERR(inode)) {
+			if (PTR_ERR(inode) == -ESTALE) {
+				EXT4_ERROR_INODE(dir,
+						 "deleted inode referenced: %u",
+						 ino);
+				return ERR_PTR(-EIO);
+			} else {
+				return ERR_CAST(inode);
+			}
 		}
 	}
 	return d_splice_alias(inode, dentry);
@@ -1694,7 +1695,7 @@ static void ext4_inc_count(handle_t *handle, struct inode *inode)
 	if (is_dx(inode) && inode->i_nlink > 1) {
 		/* limit is 16-bit i_links_count */
 		if (inode->i_nlink >= EXT4_LINK_MAX || inode->i_nlink == 2) {
-			inode->i_nlink = 1;
+			set_nlink(inode, 1);
 			EXT4_SET_RO_COMPAT_FEATURE(inode->i_sb,
 					      EXT4_FEATURE_RO_COMPAT_DIR_NLINK);
 		}
@@ -1737,7 +1738,7 @@ static int ext4_add_nondir(handle_t *handle,
  * If the create succeeds, we fill in the inode information
  * with d_instantiate().
  */
-static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+static int ext4_create(struct inode *dir, struct dentry *dentry, int mode,
 		       struct nameidata *nd)
 {
 	handle_t *handle;
@@ -1771,7 +1772,7 @@ retry:
 }
 
 static int ext4_mknod(struct inode *dir, struct dentry *dentry,
-		      umode_t mode, dev_t rdev)
+		      int mode, dev_t rdev)
 {
 	handle_t *handle;
 	struct inode *inode;
@@ -1796,9 +1797,7 @@ retry:
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
 		init_special_inode(inode, inode->i_mode, rdev);
-#ifdef CONFIG_EXT4_FS_XATTR
 		inode->i_op = &ext4_special_inode_operations;
-#endif
 		err = ext4_add_nondir(handle, dentry, inode);
 	}
 	ext4_journal_stop(handle);
@@ -1807,7 +1806,7 @@ retry:
 	return err;
 }
 
-static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int ext4_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	handle_t *handle;
 	struct inode *inode;
@@ -1861,7 +1860,7 @@ retry:
 	de->name_len = 2;
 	strcpy(de->name, "..");
 	ext4_set_de_type(dir->i_sb, de, S_IFDIR);
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	BUFFER_TRACE(dir_block, "call ext4_handle_dirty_metadata");
 	err = ext4_handle_dirty_metadata(handle, inode, dir_block);
 	if (err)
@@ -1979,18 +1978,25 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	struct ext4_iloc iloc;
 	int err = 0, rc;
 
-	if (!ext4_handle_valid(handle))
+	if (!EXT4_SB(sb)->s_journal)
 		return 0;
 
 	mutex_lock(&EXT4_SB(sb)->s_orphan_lock);
 	if (!list_empty(&EXT4_I(inode)->i_orphan))
 		goto out_unlock;
 
-	/*
-	 * Orphan handling is only valid for files with data blocks
-	 * being truncated, or files being unlinked. Note that we either
-	 * hold i_mutex, or the inode can not be referenced from outside,
-	 * so i_nlink should not be bumped due to race
+	/* Orphan handling is only valid for files with data blocks
+	 * being truncated, or files being unlinked. */
+
+	/* @@@ FIXME: Observation from aviro:
+	 * I think I can trigger J_ASSERT in ext4_orphan_add().  We block
+	 * here (on s_orphan_lock), so race with ext4_link() which might bump
+	 * ->i_nlink. For, say it, character device. Not a regular file,
+	 * not a directory, not a symlink and ->i_nlink > 0.
+	 *
+	 * tytso, 4/25/2009: I'm not sure how that could happen;
+	 * shouldn't the fs core protect us from these sort of
+	 * unlink()/link() races?
 	 */
 	J_ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		  S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
@@ -2053,8 +2059,8 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	struct ext4_iloc iloc;
 	int err = 0;
 
-	/* ext4_handle_valid() assumes a valid handle_t pointer */
-	if (handle && !ext4_handle_valid(handle))
+	if (!EXT4_SB(inode->i_sb)->s_journal &&
+	    !(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ORPHAN_FS))
 		return 0;
 
 	mutex_lock(&EXT4_SB(inode->i_sb)->s_orphan_lock);
@@ -2073,7 +2079,7 @@ int ext4_orphan_del(handle_t *handle, struct inode *inode)
 	 * transaction handle with which to update the orphan list on
 	 * disk, but we still need to remove the inode from the linked
 	 * list in memory. */
-	if (sbi->s_journal && !handle)
+	if (!handle)
 		goto out;
 
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
@@ -2214,7 +2220,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 		ext4_warning(inode->i_sb,
 			     "Deleting nonexistent file (%lu), %d",
 			     inode->i_ino, inode->i_nlink);
-		inode->i_nlink = 1;
+		set_nlink(inode, 1);
 	}
 	retval = ext4_delete_entry(handle, dir, de, bh);
 	if (retval)
@@ -2539,7 +2545,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 		if (new_inode) {
 			/* checked empty_dir above, can't have another parent,
 			 * ext4_dec_count() won't work for many-linked dirs */
-			new_inode->i_nlink = 0;
+			clear_nlink(new_inode);
 		} else {
 			ext4_inc_count(handle, new_dir);
 			ext4_update_dx_flag(new_dir);
@@ -2586,7 +2592,7 @@ const struct inode_operations ext4_dir_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.get_acl	= ext4_get_acl,
+	.check_acl	= ext4_check_acl,
 	.fiemap         = ext4_fiemap,
 };
 
@@ -2598,5 +2604,5 @@ const struct inode_operations ext4_special_inode_operations = {
 	.listxattr	= ext4_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
-	.get_acl	= ext4_get_acl,
+	.check_acl	= ext4_check_acl,
 };

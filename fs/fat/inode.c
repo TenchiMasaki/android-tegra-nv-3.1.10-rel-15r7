@@ -211,8 +211,8 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	 * FAT need to use the DIO_LOCKING for avoiding the race
 	 * condition of fat_get_block() and ->truncate().
 	 */
-	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
-				 fat_get_block);
+	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev,
+				 iov, offset, nr_segs, fat_get_block, NULL);
 	if (ret < 0 && (rw & WRITE))
 		fat_write_failed(mapping, offset + iov_length(iov, nr_segs));
 
@@ -224,9 +224,9 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	sector_t blocknr;
 
 	/* fat_get_cluster() assumes the requested blocknr isn't truncated. */
-	down_read(&MSDOS_I(mapping->host)->truncate_lock);
+	down_read(&mapping->host->i_alloc_sem);
 	blocknr = generic_block_bmap(mapping, block, fat_get_block);
-	up_read(&MSDOS_I(mapping->host)->truncate_lock);
+	up_read(&mapping->host->i_alloc_sem);
 
 	return blocknr;
 }
@@ -241,6 +241,71 @@ static const struct address_space_operations fat_aops = {
 	.direct_IO	= fat_direct_IO,
 	.bmap		= _fat_bmap
 };
+
+int _fat_fallocate(struct inode *inode, loff_t len)
+{
+	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	int err;
+	sector_t nblocks, iblock;
+	unsigned short offset;
+
+	if (!S_ISREG(inode->i_mode)) {
+		printk(KERN_ERR "_fat_fallocate: supported only for regular files\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (IS_IMMUTABLE(inode)) {
+		return -EPERM;
+	}
+
+	mutex_lock(&inode->i_mutex);
+
+	/* file is already big enough */
+	if (len <= i_size_read(inode)) {
+		mutex_unlock(&inode->i_mutex);
+		return 0;
+	}
+
+	nblocks = (len + sb->s_blocksize - 1 ) >> sb->s_blocksize_bits;
+	iblock = (MSDOS_I(inode)->mmu_private + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+
+	/* validate new size */
+	err = inode_newsize_ok(inode, len);
+	if (err) {
+		mutex_unlock(&inode->i_mutex);
+		return err;
+	}
+
+	/* check for available blocks on last cluster */
+	offset = (unsigned long)iblock & (sbi->sec_per_clus - 1);
+	if (offset) {
+		iblock += min((unsigned long) (sbi->sec_per_clus - offset),
+				(unsigned long) (nblocks - iblock));
+	}
+
+	/* now allocate new clusters */
+	while (iblock < nblocks) {
+		err = fat_add_cluster(inode);
+		if (err) {
+			break;
+		}
+
+		iblock += min((unsigned long) sbi->sec_per_clus,
+				(unsigned long) (nblocks - iblock));
+	}
+
+	/* update inode informations */
+	len = min(len, (loff_t)(iblock << sb->s_blocksize_bits));
+	i_size_write(inode, len);
+	MSDOS_I(inode)->mmu_private = len;
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+	mark_inode_dirty(inode);
+
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
+}
 
 /*
  * New FAT inode stuff. We do the following:
@@ -379,7 +444,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 			return error;
 		MSDOS_I(inode)->mmu_private = inode->i_size;
 
-		inode->i_nlink = fat_subdirs(inode);
+		set_nlink(inode, fat_subdirs(inode));
 	} else { /* not a directory */
 		inode->i_generation |= 1;
 		inode->i_mode = fat_make_mode(sbi, de->attr,
@@ -510,14 +575,13 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(fat_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
-
-	init_rwsem(&ei->truncate_lock);
 	return &ei->vfs_inode;
 }
 
 static void fat_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(fat_inode_cachep, MSDOS_I(inode));
 }
 
@@ -1187,9 +1251,9 @@ static int parse_options(struct super_block *sb, char *options, int is_vfat,
 out:
 	/* UTF-8 doesn't provide FAT semantics */
 	if (!strcmp(opts->iocharset, "utf8")) {
-		fat_msg(sb, KERN_WARNING, "utf8 is not a recommended IO charset"
+		fat_msg(sb, KERN_ERR, "utf8 is not a recommended IO charset"
 		       " for FAT filesystems, filesystem will be "
-		       "case sensitive!");
+		       "case sensitive!\n");
 	}
 
 	/* If user doesn't specify allow_utime, it's initialized from dmask. */
@@ -1232,9 +1296,22 @@ static int fat_read_root(struct inode *inode)
 	fat_save_attrs(inode, ATTR_DIR);
 	inode->i_mtime.tv_sec = inode->i_atime.tv_sec = inode->i_ctime.tv_sec = 0;
 	inode->i_mtime.tv_nsec = inode->i_atime.tv_nsec = inode->i_ctime.tv_nsec = 0;
-	inode->i_nlink = fat_subdirs(inode)+2;
+	set_nlink(inode, fat_subdirs(inode)+2);
 
 	return 0;
+}
+
+static unsigned long calc_fat_clusters(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+
+	/* Divide first to avoid overflow */
+	if (sbi->fat_bits != 12) {
+		unsigned long ent_per_sec = sb->s_blocksize * 8 / sbi->fat_bits;
+		return ent_per_sec * sbi->fat_length;
+	}
+
+	return sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
 }
 
 /*
@@ -1367,7 +1444,6 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	sbi->free_clusters = -1;	/* Don't know yet */
 	sbi->free_clus_valid = 0;
 	sbi->prev_free = FAT_START_ENT;
-	sb->s_maxbytes = 0xffffffff;
 
 	if (!sbi->fat_length && b->fat32_length) {
 		struct fat_boot_fsinfo *fsinfo;
@@ -1377,6 +1453,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		sbi->fat_bits = 32;
 		sbi->fat_length = le32_to_cpu(b->fat32_length);
 		sbi->root_cluster = le32_to_cpu(b->root_cluster);
+
+		sb->s_maxbytes = 0xffffffff;
 
 		/* MC - if info_sector is 0, don't multiply by 0 */
 		sbi->fsinfo_sector = le16_to_cpu(b->info_sector);
@@ -1442,7 +1520,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		sbi->fat_bits = (total_clusters > MAX_FAT12) ? 16 : 12;
 
 	/* check that FAT table does not overflow */
-	fat_clusters = sbi->fat_length * sb->s_blocksize * 8 / sbi->fat_bits;
+	fat_clusters = calc_fat_clusters(sb);
 	total_clusters = min(total_clusters, fat_clusters - FAT_START_ENT);
 	if (total_clusters > MAX_FAT(sb)) {
 		if (!silent)

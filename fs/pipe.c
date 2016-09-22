@@ -35,6 +35,12 @@ unsigned int pipe_max_size = 1048576;
  */
 unsigned int pipe_min_size = PAGE_SIZE;
 
+/* Maximum allocatable pages per user. Hard limit is unset by default, soft
+ * matches default values.
+ */
+unsigned long pipe_user_pages_hard;
+unsigned long pipe_user_pages_soft = PIPE_DEF_BUFFERS * INR_OPEN_CUR;
+
 /*
  * We use a start+len construction, which provides full use of the 
  * allocated memory.
@@ -349,6 +355,16 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
+static const struct pipe_buf_operations packet_pipe_buf_ops = {
+	.can_merge = 0,
+	.map = generic_pipe_buf_map,
+	.unmap = generic_pipe_buf_unmap,
+	.confirm = generic_pipe_buf_confirm,
+	.release = anon_pipe_buf_release,
+	.steal = generic_pipe_buf_steal,
+	.get = generic_pipe_buf_get,
+};
+
 static ssize_t
 pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 	   unsigned long nr_segs, loff_t pos)
@@ -379,6 +395,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 			void *addr;
 			size_t chars = buf->len, remaining;
 			int error, atomic;
+			int offset;
 
 			if (chars > total_len)
 				chars = total_len;
@@ -392,9 +409,10 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 
 			atomic = !iov_fault_in_pages_write(iov, chars);
 			remaining = chars;
+			offset = buf->offset;
 redo:
 			addr = ops->map(pipe, buf, atomic);
-			error = pipe_iov_copy_to_user(iov, addr, &buf->offset,
+			error = pipe_iov_copy_to_user(iov, addr, &offset,
 						      &remaining, atomic);
 			ops->unmap(pipe, buf, addr);
 			if (unlikely(error)) {
@@ -410,7 +428,15 @@ redo:
 				break;
 			}
 			ret += chars;
+			buf->offset += chars;
 			buf->len -= chars;
+
+			/* Was it a packet buffer? Clean up and exit */
+			if (buf->flags & PIPE_BUF_FLAG_PACKET) {
+				total_len = chars;
+				buf->len = 0;
+			}
+
 			if (!buf->len) {
 				buf->ops = NULL;
 				ops->release(pipe, buf);
@@ -461,6 +487,11 @@ redo:
 	if (ret > 0)
 		file_accessed(filp);
 	return ret;
+}
+
+static inline int is_packetized(struct file *file)
+{
+	return (file->f_flags & O_DIRECT) != 0;
 }
 
 static ssize_t
@@ -601,6 +632,11 @@ redo2:
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = chars;
+			buf->flags = 0;
+			if (is_packetized(filp)) {
+				buf->ops = &packet_pipe_buf_ops;
+				buf->flags = PIPE_BUF_FLAG_PACKET;
+			}
 			pipe->nrbufs = ++bufs;
 			pipe->tmp_page = NULL;
 
@@ -841,6 +877,9 @@ pipe_rdwr_open(struct inode *inode, struct file *filp)
 {
 	int ret = -ENOENT;
 
+	if (!(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
+		return -EINVAL;
+
 	mutex_lock(&inode->i_mutex);
 
 	if (inode->i_pipe) {
@@ -899,20 +938,49 @@ const struct file_operations rdwr_pipefifo_fops = {
 	.fasync		= pipe_rdwr_fasync,
 };
 
+static void account_pipe_buffers(struct pipe_inode_info *pipe,
+                                 unsigned long old, unsigned long new)
+{
+	atomic_long_add(new - old, &pipe->user->pipe_bufs);
+}
+
+static bool too_many_pipe_buffers_soft(struct user_struct *user)
+{
+	return pipe_user_pages_soft &&
+	       atomic_long_read(&user->pipe_bufs) >= pipe_user_pages_soft;
+}
+
+static bool too_many_pipe_buffers_hard(struct user_struct *user)
+{
+	return pipe_user_pages_hard &&
+	       atomic_long_read(&user->pipe_bufs) >= pipe_user_pages_hard;
+}
+
 struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
 {
 	struct pipe_inode_info *pipe;
 
 	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
 	if (pipe) {
-		pipe->bufs = kzalloc(sizeof(struct pipe_buffer) * PIPE_DEF_BUFFERS, GFP_KERNEL);
+		unsigned long pipe_bufs = PIPE_DEF_BUFFERS;
+		struct user_struct *user = get_current_user();
+
+		if (!too_many_pipe_buffers_hard(user)) {
+			if (too_many_pipe_buffers_soft(user))
+				pipe_bufs = 1;
+			pipe->bufs = kzalloc(sizeof(struct pipe_buffer) * pipe_bufs, GFP_KERNEL);
+		}
+
 		if (pipe->bufs) {
 			init_waitqueue_head(&pipe->wait);
 			pipe->r_counter = pipe->w_counter = 1;
 			pipe->inode = inode;
-			pipe->buffers = PIPE_DEF_BUFFERS;
+			pipe->buffers = pipe_bufs;
+			pipe->user = user;
+			account_pipe_buffers(pipe, 0, pipe_bufs);
 			return pipe;
 		}
+		free_uid(user);
 		kfree(pipe);
 	}
 
@@ -923,6 +991,8 @@ void __free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
+	account_pipe_buffers(pipe, pipe->buffers, 0);
+	free_uid(pipe->user);
 	for (i = 0; i < pipe->buffers; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
@@ -1021,7 +1091,7 @@ struct file *create_write_pipe(int flags)
 		goto err_dentry;
 	f->f_mapping = inode->i_mapping;
 
-	f->f_flags = O_WRONLY | (flags & O_NONBLOCK);
+	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 	f->f_version = 0;
 
 	return f;
@@ -1065,7 +1135,7 @@ int do_pipe_flags(int *fd, int flags)
 	int error;
 	int fdw, fdr;
 
-	if (flags & ~(O_CLOEXEC | O_NONBLOCK))
+	if (flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT))
 		return -EINVAL;
 
 	fw = create_write_pipe(flags);
@@ -1171,6 +1241,7 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long nr_pages)
 			memcpy(bufs + head, pipe->bufs, tail * sizeof(struct pipe_buffer));
 	}
 
+	account_pipe_buffers(pipe, pipe->buffers, nr_pages);
 	pipe->curbuf = 0;
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
@@ -1242,6 +1313,11 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 			goto out;
 
 		if (!capable(CAP_SYS_RESOURCE) && size > pipe_max_size) {
+			ret = -EPERM;
+			goto out;
+		} else if ((too_many_pipe_buffers_hard(pipe->user) ||
+			    too_many_pipe_buffers_soft(pipe->user)) &&
+		           !capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN)) {
 			ret = -EPERM;
 			goto out;
 		}

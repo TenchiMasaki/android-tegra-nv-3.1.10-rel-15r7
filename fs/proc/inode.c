@@ -77,6 +77,7 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 static void proc_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
+	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
@@ -318,7 +319,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	if (!pde->proc_fops) {
 		spin_unlock(&pde->pde_unload_lock);
 		kfree(pdeo);
-		return -ENOENT;
+		return -EINVAL;
 	}
 	pde->pde_users++;
 	open = pde->proc_fops->open;
@@ -444,7 +445,7 @@ struct inode *proc_get_inode(struct super_block *sb, struct proc_dir_entry *de)
 		if (de->size)
 			inode->i_size = de->size;
 		if (de->nlink)
-			inode->i_nlink = de->nlink;
+			set_nlink(inode, de->nlink);
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
 		if (de->proc_fops) {

@@ -114,7 +114,6 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	int offset, ret = 0;
 	struct ipv6hdr *ip6;
 	u8 nexthdr;
-	__be16 frag_off;
 
 	ip6 = ipv6_hdr(skb);
 	if (ip6 == NULL)
@@ -394,15 +393,11 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 /**
  * common_lsm_audit - generic LSM auditing function
  * @a:  auxiliary audit data
- * @pre_audit: lsm-specific pre-audit callback
- * @post_audit: lsm-specific post-audit callback
  *
  * setup the audit buffer for common security information
  * uses callback to print LSM specific information
  */
-void common_lsm_audit(struct common_audit_data *a,
-	void (*pre_audit)(struct audit_buffer *, void *),
-	void (*post_audit)(struct audit_buffer *, void *))
+void common_lsm_audit(struct common_audit_data *a)
 {
 	struct audit_buffer *ab;
 
@@ -414,13 +409,13 @@ void common_lsm_audit(struct common_audit_data *a,
 	if (ab == NULL)
 		return;
 
-	if (pre_audit)
-		pre_audit(ab, a);
+	if (a->lsm_pre_audit)
+		a->lsm_pre_audit(ab, a);
 
 	dump_common_audit_data(ab, a);
 
-	if (post_audit)
-		post_audit(ab, a);
+	if (a->lsm_post_audit)
+		a->lsm_post_audit(ab, a);
 
 	audit_log_end(ab);
 }

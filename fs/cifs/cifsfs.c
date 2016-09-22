@@ -86,6 +86,24 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
+void
+cifs_sb_active(struct super_block *sb)
+{
+	struct cifs_sb_info *server = CIFS_SB(sb);
+
+	if (atomic_inc_return(&server->active) == 1)
+		atomic_inc(&sb->s_active);
+}
+
+void
+cifs_sb_deactive(struct super_block *sb)
+{
+	struct cifs_sb_info *server = CIFS_SB(sb);
+
+	if (atomic_dec_and_test(&server->active))
+		deactivate_super(sb);
+}
+
 static int
 cifs_read_super(struct super_block *sb)
 {
@@ -206,7 +224,7 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int cifs_permission(struct inode *inode, int mask)
+static int cifs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct cifs_sb_info *cifs_sb;
 
@@ -221,7 +239,7 @@ static int cifs_permission(struct inode *inode, int mask)
 		on the client (above and beyond ACL on servers) for
 		servers which do not support setting and viewing mode bits,
 		so allowing client to check permissions is useful */
-		return generic_permission(inode, mask);
+		return generic_permission(inode, mask, flags, NULL);
 }
 
 static struct kmem_cache *cifs_inode_cachep;
@@ -553,6 +571,11 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 			dentry = ERR_PTR(-ENOENT);
 			break;
 		}
+		if (!S_ISDIR(dir->i_mode)) {
+			dput(dentry);
+			dentry = ERR_PTR(-ENOTDIR);
+			break;
+		}
 
 		/* skip separators */
 		while (*s == sep)
@@ -723,7 +746,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		if (rc < 0)
 			return (loff_t)rc;
 	}
-	return generic_file_llseek_unlocked(file, offset, origin);
+	return generic_file_llseek(file, offset, origin);
 }
 
 static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
@@ -763,7 +786,6 @@ struct file_system_type cifs_fs_type = {
 	.kill_sb = cifs_kill_sb,
 	/*  .fs_flags */
 };
-//MODULE_ALIAS_FS("cifs");
 const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
 	.lookup = cifs_lookup,

@@ -264,6 +264,13 @@ Enomem:
 	return ERR_PTR(-ENOMEM);
 }
 
+int simple_open(struct inode *inode, struct file *file)
+{
+	if (inode->i_private)
+		file->private_data = inode->i_private;
+	return 0;
+}
+
 int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
@@ -328,10 +335,8 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (new_dentry->d_inode) {
 		simple_unlink(new_dir, new_dentry);
-		if (they_are_dirs) {
-			drop_nlink(new_dentry->d_inode);
+		if (they_are_dirs)
 			drop_nlink(old_dir);
-		}
 	} else if (they_are_dirs) {
 		drop_nlink(old_dir);
 		inc_nlink(new_dir);
@@ -490,7 +495,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
-	inode->i_nlink = 2;
+	set_nlink(inode, 2);
 	root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
@@ -984,6 +989,7 @@ EXPORT_SYMBOL(simple_dir_operations);
 EXPORT_SYMBOL(simple_empty);
 EXPORT_SYMBOL(simple_fill_super);
 EXPORT_SYMBOL(simple_getattr);
+EXPORT_SYMBOL(simple_open);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);

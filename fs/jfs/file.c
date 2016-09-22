@@ -117,8 +117,6 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(inode)) {
-		inode_dio_wait(inode);
-
 		rc = vmtruncate(inode, iattr->ia_size);
 		if (rc)
 			return rc;
@@ -140,7 +138,7 @@ const struct inode_operations jfs_file_inode_operations = {
 	.removexattr	= jfs_removexattr,
 	.setattr	= jfs_setattr,
 #ifdef CONFIG_JFS_POSIX_ACL
-	.get_acl	= jfs_get_acl,
+	.check_acl	= jfs_check_acl,
 #endif
 };
 

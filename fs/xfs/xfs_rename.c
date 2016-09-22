@@ -116,7 +116,7 @@ xfs_rename(
 	trace_xfs_rename(src_dp, target_dp, src_name, target_name);
 
 	new_parent = (src_dp != target_dp);
-	src_is_directory = S_ISDIR(src_ip->i_d.di_mode);
+	src_is_directory = ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR);
 
 	xfs_sort_for_rename(src_dp, target_dp, src_ip, target_ip,
 				inodes, &num_inodes);
@@ -215,7 +215,7 @@ xfs_rename(
 		 * target and source are directories and that target can be
 		 * destroyed, or that neither is a directory.
 		 */
-		if (S_ISDIR(target_ip->i_d.di_mode)) {
+		if ((target_ip->i_d.di_mode & S_IFMT) == S_IFDIR) {
 			/*
 			 * Make sure target dir is empty.
 			 */

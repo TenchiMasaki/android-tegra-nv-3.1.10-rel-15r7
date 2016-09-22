@@ -141,6 +141,8 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__field(int, for_background)
 		__field(int, for_reclaim)
 		__field(int, range_cyclic)
+		__field(int, more_io)
+		__field(unsigned long, older_than_this)
 		__field(long, range_start)
 		__field(long, range_end)
 	),
@@ -154,12 +156,15 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->for_background	= wbc->for_background;
 		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->more_io	= wbc->more_io;
+		__entry->older_than_this = wbc->older_than_this ?
+						*wbc->older_than_this : 0;
 		__entry->range_start	= (long)wbc->range_start;
 		__entry->range_end	= (long)wbc->range_end;
 	),
 
 	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
-		"bgrd=%d reclm=%d cyclic=%d "
+		"bgrd=%d reclm=%d cyclic=%d more=%d older=0x%lx "
 		"start=0x%lx end=0x%lx",
 		__entry->name,
 		__entry->nr_to_write,
@@ -169,6 +174,8 @@ DECLARE_EVENT_CLASS(wbc_class,
 		__entry->for_background,
 		__entry->for_reclaim,
 		__entry->range_cyclic,
+		__entry->more_io,
+		__entry->older_than_this,
 		__entry->range_start,
 		__entry->range_end)
 )
@@ -177,6 +184,12 @@ DECLARE_EVENT_CLASS(wbc_class,
 DEFINE_EVENT(wbc_class, name, \
 	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi), \
 	TP_ARGS(wbc, bdi))
+DEFINE_WBC_EVENT(wbc_writeback_start);
+DEFINE_WBC_EVENT(wbc_writeback_written);
+DEFINE_WBC_EVENT(wbc_writeback_wait);
+DEFINE_WBC_EVENT(wbc_balance_dirty_start);
+DEFINE_WBC_EVENT(wbc_balance_dirty_written);
+DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
 DEFINE_WBC_EVENT(wbc_writepage);
 
 TRACE_EVENT(writeback_queue_io,

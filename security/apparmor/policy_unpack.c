@@ -84,7 +84,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @new: profile if it has been allocated (MAYBE NULL)
  * @name: name of the profile being manipulated (MAYBE NULL)
  * @info: any extra info about the failure (MAYBE NULL)
- * @e: buffer position info (NOT NULL)
+ * @e: buffer position info
  * @error: error code
  *
  * Returns: %0 or error
@@ -96,11 +96,6 @@ static int audit_iface(struct aa_profile *new, const char *name,
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
 	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.iface.pos = e->pos - e->start;
-	sa.aad.iface.target = new;
-	sa.aad.name = name;
-	sa.aad.info = info;
-	sa.aad.error = error;
 	sa.aad = &aad;
 	if (e)
 		aad.iface.pos = e->pos - e->start;
