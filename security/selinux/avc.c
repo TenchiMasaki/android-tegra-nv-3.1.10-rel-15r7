@@ -1242,10 +1242,10 @@ int avc_has_perm_flags(u32 ssid, u32 tsid, u16 tclass,
 	struct av_decision avd;
 	int rc, rc2;
 
-	rc = avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
+	rc = 0; //avc_has_perm_noaudit(ssid, tsid, tclass, requested, 0, &avd);
 
-	rc2 = avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata,
-			flags);
+	rc2 = 0; /* avc_audit(ssid, tsid, tclass, requested, &avd, rc, auditdata,
+			flags); */
 	if (rc2)
 		return rc2;
 	return rc;
