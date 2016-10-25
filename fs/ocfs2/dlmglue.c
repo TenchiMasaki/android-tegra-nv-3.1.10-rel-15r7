@@ -2092,7 +2092,7 @@ static void ocfs2_refresh_inode_from_lvb(struct inode *inode)
 	inode->i_uid     = be32_to_cpu(lvb->lvb_iuid);
 	inode->i_gid     = be32_to_cpu(lvb->lvb_igid);
 	inode->i_mode    = be16_to_cpu(lvb->lvb_imode);
-	set_nlink(inode, be16_to_cpu(lvb->lvb_inlink));
+	inode->i_nlink   = be16_to_cpu(lvb->lvb_inlink);
 	ocfs2_unpack_timespec(&inode->i_atime,
 			      be64_to_cpu(lvb->lvb_iatime_packed));
 	ocfs2_unpack_timespec(&inode->i_mtime,
@@ -2539,7 +2539,6 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 	 * everything is up to the caller :) */
 	status = ocfs2_should_refresh_lock_res(lockres);
 	if (status < 0) {
-		ocfs2_cluster_unlock(osb, lockres, level);
 		mlog_errno(status);
 		goto bail;
 	}
@@ -2548,10 +2547,8 @@ int ocfs2_super_lock(struct ocfs2_super *osb,
 
 		ocfs2_complete_lock_res_refresh(lockres, status);
 
-		if (status < 0) {
-			ocfs2_cluster_unlock(osb, lockres, level);
+		if (status < 0)
 			mlog_errno(status);
-		}
 		ocfs2_track_lock_refresh(lockres);
 	}
 bail:

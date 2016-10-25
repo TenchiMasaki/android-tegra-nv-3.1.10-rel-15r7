@@ -951,8 +951,6 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	struct nilfs_root *root;
 	int ret;
 
-	mutex_lock(&nilfs->ns_snapshot_mount_mutex);
-
 	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_cpfile_is_snapshot(nilfs->ns_cpfile, cno);
 	up_read(&nilfs->ns_segctor_sem);
@@ -977,7 +975,6 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
 	ret = nilfs_get_root_dentry(s, root, root_dentry);
 	nilfs_put_root(root);
  out:
-	mutex_unlock(&nilfs->ns_snapshot_mount_mutex);
 	return ret;
 }
 
@@ -1064,7 +1061,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_export_op = &nilfs_export_ops;
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
-	sb->s_max_links = NILFS_LINK_MAX;
 
 	bdi = sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
 	sb->s_bdi = bdi ? : &default_backing_dev_info;

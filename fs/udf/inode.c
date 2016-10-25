@@ -575,7 +575,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	struct udf_inode_info *iinfo = UDF_I(inode);
 	int goal = 0, pgoal = iinfo->i_location.logicalBlockNum;
 	int lastblock = 0;
-	bool isBeyondEOF;
 
 	prev_epos.offset = udf_file_entry_alloc_offset(inode);
 	prev_epos.block = iinfo->i_location;
@@ -654,7 +653,7 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	/* Are we beyond EOF? */
 	if (etype == -1) {
 		int ret;
-		isBeyondEOF = 1;
+
 		if (count) {
 			if (c)
 				laarr[0] = laarr[1];
@@ -697,7 +696,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 		endnum = c + 1;
 		lastblock = 1;
 	} else {
-		isBeyondEOF = 0;
 		endnum = startnum = ((count > 2) ? 2 : count);
 
 		/* if the current extent is in position 0,
@@ -740,13 +738,10 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 				goal, err);
 		if (!newblocknum) {
 			brelse(prev_epos.bh);
-			brelse(cur_epos.bh);
-			brelse(next_epos.bh);
 			*err = -ENOSPC;
 			return NULL;
 		}
-		if (isBeyondEOF)
-			iinfo->i_lenExtents += inode->i_sb->s_blocksize;
+		iinfo->i_lenExtents += inode->i_sb->s_blocksize;
 	}
 
 	/* if the extent the requsted block is located in contains multiple
@@ -773,8 +768,6 @@ static struct buffer_head *inode_getblk(struct inode *inode, sector_t block,
 	udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
 
 	brelse(prev_epos.bh);
-	brelse(cur_epos.bh);
-	brelse(next_epos.bh);
 
 	newblock = udf_get_pblock(inode->i_sb, newblocknum,
 				iinfo->i_location.partitionReferenceNum, 0);
@@ -1258,7 +1251,6 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	int offset;
 	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 	struct udf_inode_info *iinfo = UDF_I(inode);
-	unsigned int link_count;
 
 	fe = (struct fileEntry *)bh->b_data;
 	efe = (struct extendedFileEntry *)bh->b_data;
@@ -1341,10 +1333,9 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 	inode->i_mode &= ~sbi->s_umask;
 	read_unlock(&sbi->s_cred_lock);
 
-	link_count = le16_to_cpu(fe->fileLinkCount);
-	if (!link_count)
-		link_count = 1;
-	set_nlink(inode, link_count);
+	inode->i_nlink = le16_to_cpu(fe->fileLinkCount);
+	if (!inode->i_nlink)
+		inode->i_nlink = 1;
 
 	inode->i_size = le64_to_cpu(fe->informationLength);
 	iinfo->i_lenExtents = inode->i_size;

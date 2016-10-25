@@ -556,7 +556,8 @@ static void shmem_evict_inode(struct inode *inode)
 			list_del_init(&info->swaplist);
 			mutex_unlock(&shmem_swaplist_mutex);
 		}
-	}
+	} else
+		kfree(info->symlink);
 
 	list_for_each_entry_safe(xattr, nxattr, &info->xattr_list, list) {
 		kfree(xattr->name);
@@ -1311,6 +1312,119 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
 	return retval;
 }
 
+static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
+				struct pipe_inode_info *pipe, size_t len,
+				unsigned int flags)
+{
+	struct address_space *mapping = in->f_mapping;
+	struct inode *inode = mapping->host;
+	unsigned int loff, nr_pages, req_pages;
+	struct page *pages[PIPE_DEF_BUFFERS];
+	struct partial_page partial[PIPE_DEF_BUFFERS];
+	struct page *page;
+	pgoff_t index, end_index;
+	loff_t isize, left;
+	int error, page_nr;
+	struct splice_pipe_desc spd = {
+		.pages = pages,
+		.partial = partial,
+		.flags = flags,
+		.ops = &page_cache_pipe_buf_ops,
+		.spd_release = spd_release_page,
+	};
+
+	isize = i_size_read(inode);
+	if (unlikely(*ppos >= isize))
+		return 0;
+
+	left = isize - *ppos;
+	if (unlikely(left < len))
+		len = left;
+
+	if (splice_grow_spd(pipe, &spd))
+		return -ENOMEM;
+
+	index = *ppos >> PAGE_CACHE_SHIFT;
+	loff = *ppos & ~PAGE_CACHE_MASK;
+	req_pages = (len + loff + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	nr_pages = min(req_pages, pipe->buffers);
+
+	spd.nr_pages = find_get_pages_contig(mapping, index,
+						nr_pages, spd.pages);
+	index += spd.nr_pages;
+	error = 0;
+
+	while (spd.nr_pages < nr_pages) {
+		error = shmem_getpage(inode, index, &page, SGP_CACHE, NULL);
+		if (error)
+			break;
+		unlock_page(page);
+		spd.pages[spd.nr_pages++] = page;
+		index++;
+	}
+
+	index = *ppos >> PAGE_CACHE_SHIFT;
+	nr_pages = spd.nr_pages;
+	spd.nr_pages = 0;
+
+	for (page_nr = 0; page_nr < nr_pages; page_nr++) {
+		unsigned int this_len;
+
+		if (!len)
+			break;
+
+		this_len = min_t(unsigned long, len, PAGE_CACHE_SIZE - loff);
+		page = spd.pages[page_nr];
+
+		if (!PageUptodate(page) || page->mapping != mapping) {
+			error = shmem_getpage(inode, index, &page,
+							SGP_CACHE, NULL);
+			if (error)
+				break;
+			unlock_page(page);
+			page_cache_release(spd.pages[page_nr]);
+			spd.pages[page_nr] = page;
+		}
+
+		isize = i_size_read(inode);
+		end_index = (isize - 1) >> PAGE_CACHE_SHIFT;
+		if (unlikely(!isize || index > end_index))
+			break;
+
+		if (end_index == index) {
+			unsigned int plen;
+
+			plen = ((isize - 1) & ~PAGE_CACHE_MASK) + 1;
+			if (plen <= loff)
+				break;
+
+			this_len = min(this_len, plen - loff);
+			len = this_len;
+		}
+
+		spd.partial[page_nr].offset = loff;
+		spd.partial[page_nr].len = this_len;
+		len -= this_len;
+		loff = 0;
+		spd.nr_pages++;
+		index++;
+	}
+
+	while (page_nr < nr_pages)
+		page_cache_release(spd.pages[page_nr++]);
+
+	if (spd.nr_pages)
+		error = splice_to_pipe(pipe, &spd);
+
+	splice_shrink_spd(pipe, &spd);
+
+	if (error > 0) {
+		*ppos += error;
+		file_accessed(in);
+	}
+	return error;
+}
+
 static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct shmem_sb_info *sbinfo = SHMEM_SB(dentry->d_sb);
@@ -1497,8 +1611,11 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	info = SHMEM_I(inode);
 	inode->i_size = len-1;
 	if (len <= SHORT_SYMLINK_LEN) {
-		/* do it inline */
-		memcpy(info->inline_symlink, symname, len);
+		info->symlink = kmemdup(symname, len, GFP_KERNEL);
+		if (!info->symlink) {
+			iput(inode);
+			return -ENOMEM;
+		}
 		inode->i_op = &shmem_short_symlink_operations;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
@@ -1524,7 +1641,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 
 static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, SHMEM_I(dentry->d_inode)->inline_symlink);
+	nd_set_link(nd, SHMEM_I(dentry->d_inode)->symlink);
 	return NULL;
 }
 
@@ -2161,7 +2278,7 @@ static const struct file_operations shmem_file_operations = {
 	.aio_read	= shmem_file_aio_read,
 	.aio_write	= generic_file_aio_write,
 	.fsync		= noop_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= shmem_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 #endif
 };

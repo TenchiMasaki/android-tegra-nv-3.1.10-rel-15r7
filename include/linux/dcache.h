@@ -201,7 +201,6 @@ struct dentry_operations {
 
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200
-#define DCACHE_SHRINK_LIST	0x0400
 
 #define DCACHE_NFSFS_RENAMED	0x1000
      /* this dentry has been "silly renamed" and has to be deleted on the last
@@ -216,10 +215,6 @@ struct dentry_operations {
 #define DCACHE_NEED_LOOKUP	0x80000 /* dentry requires i_op->lookup */
 #define DCACHE_MANAGED_DENTRY \
 	(DCACHE_MOUNTED|DCACHE_NEED_AUTOMOUNT|DCACHE_MANAGE_TRANSIT)
-
-#define DCACHE_DENTRY_KILLED	0x100000
-
-#define DCACHE_ENCRYPTED_WITH_KEY	0x04000000 /* dir is encrypted with a valid key */
 
 extern seqlock_t rename_lock;
 
@@ -418,8 +413,6 @@ static inline bool d_mountpoint(struct dentry *dentry)
 {
 	return dentry->d_flags & DCACHE_MOUNTED;
 }
-
-extern struct dentry *lookup_create(struct nameidata *nd, int is_dir);
 
 static inline bool d_need_lookup(struct dentry *dentry)
 {

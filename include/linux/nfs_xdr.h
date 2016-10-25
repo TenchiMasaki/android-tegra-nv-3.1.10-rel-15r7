@@ -612,7 +612,6 @@ struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;
 	int				acl_flags;
-	struct page *			acl_scratch;
 	struct nfs4_sequence_res	seq_res;
 };
 

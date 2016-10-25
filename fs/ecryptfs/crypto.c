@@ -344,14 +344,6 @@ static int encrypt_scatterlist(struct ecryptfs_crypt_stat *crypt_stat,
 	};
 	int rc = 0;
 
-	/* tfm may be NULL for it to be correctly freed in
-	   ecryptfs_destroy_crypt_stat(), check it to avoid triggering BUG_ON */
-	if (!crypt_stat->tfm) {
-		rc = -EINVAL;
-		ecryptfs_printk(KERN_ERR, "Error, Found NULL tfm!!!!!\n");
-		goto out;
-	}
-
 	BUG_ON(!crypt_stat || !crypt_stat->tfm
 	       || !(crypt_stat->flags & ECRYPTFS_STRUCT_INITIALIZED));
 	if (unlikely(ecryptfs_verbosity > 0)) {
@@ -935,7 +927,7 @@ static void ecryptfs_set_default_crypt_stat_vals(
 
 /**
  * ecryptfs_new_file_context
- * @ecryptfs_dentry: The eCryptfs dentry
+ * @ecryptfs_inode: The eCryptfs inode
  *
  * If the crypto context for the file has not yet been established,
  * this is where we do that.  Establishing a new crypto context
@@ -952,13 +944,13 @@ static void ecryptfs_set_default_crypt_stat_vals(
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry)
+int ecryptfs_new_file_context(struct inode *ecryptfs_inode)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-	    &ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
+	    &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 	    &ecryptfs_superblock_to_private(
-		    ecryptfs_dentry->d_sb)->mount_crypt_stat;
+		    ecryptfs_inode->i_sb)->mount_crypt_stat;
 	int cipher_name_len;
 	int rc = 0;
 
@@ -1267,12 +1259,12 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t max,
 }
 
 static int
-ecryptfs_write_metadata_to_contents(struct dentry *ecryptfs_dentry,
+ecryptfs_write_metadata_to_contents(struct inode *ecryptfs_inode,
 				    char *virt, size_t virt_len)
 {
 	int rc;
 
-	rc = ecryptfs_write_lower(ecryptfs_dentry->d_inode, virt,
+	rc = ecryptfs_write_lower(ecryptfs_inode, virt,
 				  0, virt_len);
 	if (rc < 0)
 		printk(KERN_ERR "%s: Error attempting to write header "
@@ -1306,7 +1298,8 @@ static unsigned long ecryptfs_get_zeroed_pages(gfp_t gfp_mask,
 
 /**
  * ecryptfs_write_metadata
- * @ecryptfs_dentry: The eCryptfs dentry
+ * @ecryptfs_dentry: The eCryptfs dentry, which should be negative
+ * @ecryptfs_inode: The newly created eCryptfs inode
  *
  * Write the file headers out.  This will likely involve a userspace
  * callout, in which the session key is encrypted with one or more
@@ -1316,10 +1309,11 @@ static unsigned long ecryptfs_get_zeroed_pages(gfp_t gfp_mask,
  *
  * Returns zero on success; non-zero on error
  */
-int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
+int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry,
+			    struct inode *ecryptfs_inode)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	unsigned int order;
 	char *virt;
 	size_t virt_len;
@@ -1359,7 +1353,7 @@ int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry)
 		rc = ecryptfs_write_metadata_to_xattr(ecryptfs_dentry, virt,
 						      size);
 	else
-		rc = ecryptfs_write_metadata_to_contents(ecryptfs_dentry, virt,
+		rc = ecryptfs_write_metadata_to_contents(ecryptfs_inode, virt,
 							 virt_len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error writing metadata out to lower file; "
@@ -1505,22 +1499,10 @@ out:
  */
 int ecryptfs_read_xattr_region(char *page_virt, struct inode *ecryptfs_inode)
 {
-	struct ecryptfs_inode_info *inode_info =
-		ecryptfs_inode_to_private(ecryptfs_inode);
-	struct dentry *lower_dentry = NULL;
+	struct dentry *lower_dentry =
+		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file->f_dentry;
 	ssize_t size;
 	int rc = 0;
-
-	mutex_lock(&inode_info->lower_file_mutex);
-	if (!inode_info->lower_file) {
-		printk(KERN_INFO "Found null lower_file in read_xattr\n");
-		mutex_unlock(&inode_info->lower_file_mutex);
-		return -EINVAL;
-	}
-
-	lower_dentry = inode_info->lower_file->f_dentry;
-
-	mutex_unlock(&inode_info->lower_file_mutex);
 
 	size = ecryptfs_getxattr_lower(lower_dentry, ECRYPTFS_XATTR_NAME,
 				       page_virt, ECRYPTFS_DEFAULT_EXTENT_SIZE);
@@ -2056,6 +2038,7 @@ ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
 			break;
 		case 2:
 			dst[dst_byte_offset++] |= (src_byte);
+			dst[dst_byte_offset] = 0;
 			current_bit_offset = 0;
 			break;
 		}

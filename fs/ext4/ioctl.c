@@ -35,7 +35,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		handle_t *handle = NULL;
 		int err, migrate = 0;
 		struct ext4_iloc iloc;
-		unsigned int oldflags, mask, i;
+		unsigned int oldflags;
 		unsigned int jflag;
 
 		if (!inode_owner_or_capable(inode))
@@ -44,7 +44,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 
@@ -112,14 +112,9 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (err)
 			goto flags_err;
 
-		for (i = 0, mask = 1; i < 32; i++, mask <<= 1) {
-			if (!(mask & EXT4_FL_USER_MODIFIABLE))
-				continue;
-			if (mask & flags)
-				ext4_set_inode_flag(inode, i);
-			else
-				ext4_clear_inode_flag(inode, i);
-		}
+		flags = flags & EXT4_FL_USER_MODIFIABLE;
+		flags |= oldflags & ~EXT4_FL_USER_MODIFIABLE;
+		ei->i_flags = flags;
 
 		ext4_set_inode_flags(inode);
 		inode->i_ctime = ext4_current_time(inode);
@@ -138,7 +133,7 @@ flags_err:
 			err = ext4_ext_migrate(inode);
 flags_out:
 		mutex_unlock(&inode->i_mutex);
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
 	case EXT4_IOC_GETVERSION:
@@ -154,7 +149,7 @@ flags_out:
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 		if (get_user(generation, (int __user *) arg)) {
@@ -175,7 +170,7 @@ flags_out:
 		}
 		ext4_journal_stop(handle);
 setversion_out:
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
 #ifdef CONFIG_JBD2_DEBUG
@@ -207,13 +202,14 @@ setversion_out:
 		struct super_block *sb = inode->i_sb;
 		int err, err2=0;
 
-		if (!capable(CAP_SYS_RESOURCE))
-			return -EPERM;
+		err = ext4_resize_begin(sb);
+		if (err)
+			return err;
 
 		if (get_user(n_blocks_count, (__u32 __user *)arg))
 			return -EFAULT;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 
@@ -225,7 +221,8 @@ setversion_out:
 		}
 		if (err == 0)
 			err = err2;
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
+		ext4_resize_end(sb);
 
 		return err;
 	}
@@ -253,13 +250,13 @@ setversion_out:
 			goto mext_out;
 		}
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			goto mext_out;
 
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		if (me.moved_len > 0)
 			file_remove_suid(donor_filp);
 
@@ -276,14 +273,15 @@ mext_out:
 		struct super_block *sb = inode->i_sb;
 		int err, err2=0;
 
-		if (!capable(CAP_SYS_RESOURCE))
-			return -EPERM;
+		err = ext4_resize_begin(sb);
+		if (err)
+			return err;
 
 		if (copy_from_user(&input, (struct ext4_new_group_input __user *)arg,
 				sizeof(input)))
 			return -EFAULT;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 
@@ -295,7 +293,8 @@ mext_out:
 		}
 		if (err == 0)
 			err = err2;
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
+		ext4_resize_end(sb);
 
 		return err;
 	}
@@ -306,7 +305,7 @@ mext_out:
 		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 		/*
@@ -318,7 +317,7 @@ mext_out:
 		mutex_lock(&(inode->i_mutex));
 		err = ext4_ext_migrate(inode);
 		mutex_unlock(&(inode->i_mutex));
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
 
@@ -328,11 +327,11 @@ mext_out:
 		if (!inode_owner_or_capable(inode))
 			return -EACCES;
 
-		err = mnt_want_write_file(filp);
+		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
 			return err;
 		err = ext4_alloc_da_blocks(inode);
-		mnt_drop_write_file(filp);
+		mnt_drop_write(filp->f_path.mnt);
 		return err;
 	}
 

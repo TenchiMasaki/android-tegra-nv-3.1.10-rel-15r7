@@ -44,35 +44,31 @@ inline struct block_device *I_BDEV(struct inode *inode)
 {
 	return &BDEV_I(inode)->bdev;
 }
-
 EXPORT_SYMBOL(I_BDEV);
 
 /*
- * move the inode from it's current bdi to the a new bdi. if the inode is dirty
- * we need to move it onto the dirty list of @dst so that the inode is always
- * on the right list.
+ * Move the inode from its current bdi to a new bdi. If the inode is dirty we
+ * need to move it onto the dirty list of @dst so that the inode is always on
+ * the right list.
  */
 static void bdev_inode_switch_bdi(struct inode *inode,
 			struct backing_dev_info *dst)
 {
-	bool wakeup_bdi = false;
+	struct backing_dev_info *old = inode->i_data.backing_dev_info;
 
-	spin_lock(&inode_wb_list_lock);
+	if (unlikely(dst == old))		/* deadlock avoidance */
+		return;
+	bdi_lock_two(&old->wb, &dst->wb);
 	spin_lock(&inode->i_lock);
 	inode->i_data.backing_dev_info = dst;
-	if (inode->i_state & I_DIRTY) {
-		if (bdi_cap_writeback_dirty(dst) && !wb_has_dirty_io(&dst->wb))
-			wakeup_bdi = true;
+	if (inode->i_state & I_DIRTY)
 		list_move(&inode->i_wb_list, &dst->wb.b_dirty);
-	}
 	spin_unlock(&inode->i_lock);
-	spin_unlock(&inode_wb_list_lock);
-
-	if (wakeup_bdi)
-		bdi_wakeup_thread_delayed(dst);
+	spin_unlock(&old->wb.list_lock);
+	spin_unlock(&dst->wb.list_lock);
 }
 
-sector_t blkdev_max_block(struct block_device *bdev)
+static sector_t max_block(struct block_device *bdev)
 {
 	sector_t retval = ~((sector_t)0);
 	loff_t sz = i_size_read(bdev->bd_inode);
@@ -143,7 +139,7 @@ static int
 blkdev_get_block(struct inode *inode, sector_t iblock,
 		struct buffer_head *bh, int create)
 {
-	if (iblock >= blkdev_max_block(I_BDEV(inode))) {
+	if (iblock >= max_block(I_BDEV(inode))) {
 		if (create)
 			return -EIO;
 
@@ -165,7 +161,7 @@ static int
 blkdev_get_blocks(struct inode *inode, sector_t iblock,
 		struct buffer_head *bh, int create)
 {
-	sector_t end_block = blkdev_max_block(I_BDEV(inode));
+	sector_t end_block = max_block(I_BDEV(inode));
 	unsigned long max_blocks = bh->b_size >> inode->i_blkbits;
 
 	if ((iblock + max_blocks) > end_block) {
@@ -391,6 +387,10 @@ int blkdev_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);
 	int error;
+	
+	error = filemap_write_and_wait_range(filp->f_mapping, start, end);
+	if (error)
+		return error;
 
 	/*
 	 * There is no need to serialise calls to blkdev_issue_flush with
@@ -425,7 +425,6 @@ static void bdev_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct bdev_inode *bdi = BDEV_I(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(bdev_cachep, bdi);
 }
 
@@ -556,6 +555,7 @@ struct block_device *bdget(dev_t dev)
 
 	if (inode->i_state & I_NEW) {
 		bdev->bd_contains = NULL;
+		bdev->bd_super = NULL;
 		bdev->bd_inode = inode;
 		bdev->bd_block_size = (1 << inode->i_blkbits);
 		bdev->bd_part_count = 0;
@@ -585,7 +585,6 @@ struct block_device *bdgrab(struct block_device *bdev)
 	ihold(bdev->bd_inode);
 	return bdev;
 }
-EXPORT_SYMBOL(bdgrab);
 
 long nr_blockdev_pages(void)
 {
@@ -1062,9 +1061,7 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 {
 	unsigned bsize = bdev_logical_block_size(bdev);
 
-	mutex_lock(&bdev->bd_inode->i_mutex);
-	i_size_write(bdev->bd_inode, size);
-	mutex_unlock(&bdev->bd_inode->i_mutex);
+	bdev->bd_inode->i_size = size;
 	while (bsize < PAGE_CACHE_SIZE) {
 		if (size & bsize)
 			break;
@@ -1161,12 +1158,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			 * The latter is necessary to prevent ghost
 			 * partitions on a removed medium.
 			 */
-			if (bdev->bd_invalidated) {
-				if (!ret)
-					rescan_partitions(disk, bdev);
-				else if (ret == -ENOMEDIUM)
-					invalidate_partitions(disk, bdev);
-			}
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
+				rescan_partitions(disk, bdev);
 			if (ret)
 				goto out_clear;
 		} else {
@@ -1196,12 +1189,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (bdev->bd_disk->fops->open)
 				ret = bdev->bd_disk->fops->open(bdev, mode);
 			/* the same as first opener case, read comment there */
-			if (bdev->bd_invalidated) {
-				if (!ret)
-					rescan_partitions(bdev->bd_disk, bdev);
-				else if (ret == -ENOMEDIUM)
-					invalidate_partitions(bdev->bd_disk, bdev);
-			}
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
+				rescan_partitions(bdev->bd_disk, bdev);
 			if (ret)
 				goto out_unlock_bdev;
 		}
@@ -1473,6 +1462,8 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 
 int blkdev_put(struct block_device *bdev, fmode_t mode)
 {
+	mutex_lock(&bdev->bd_mutex);
+
 	if (mode & FMODE_EXCL) {
 		bool bdev_free;
 
@@ -1481,7 +1472,6 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		 * are protected with bdev_lock.  bd_mutex is to
 		 * synchronize disk_holder unlinking.
 		 */
-		mutex_lock(&bdev->bd_mutex);
 		spin_lock(&bdev_lock);
 
 		WARN_ON_ONCE(--bdev->bd_holders < 0);
@@ -1499,16 +1489,20 @@ int blkdev_put(struct block_device *bdev, fmode_t mode)
 		 * If this was the last claim, remove holder link and
 		 * unblock evpoll if it was a write holder.
 		 */
-		if (bdev_free) {
-			if (bdev->bd_write_holder) {
-				disk_unblock_events(bdev->bd_disk);
-				disk_check_events(bdev->bd_disk);
-				bdev->bd_write_holder = false;
-			}
+		if (bdev_free && bdev->bd_write_holder) {
+			disk_unblock_events(bdev->bd_disk);
+			bdev->bd_write_holder = false;
 		}
-
-		mutex_unlock(&bdev->bd_mutex);
 	}
+
+	/*
+	 * Trigger event checking and tell drivers to flush MEDIA_CHANGE
+	 * event.  This is to ensure detection of media removal commanded
+	 * from userland - e.g. eject(1).
+	 */
+	disk_flush_events(bdev->bd_disk, DISK_EVENT_MEDIA_CHANGE);
+
+	mutex_unlock(&bdev->bd_mutex);
 
 	return __blkdev_put(bdev, mode, 0);
 }

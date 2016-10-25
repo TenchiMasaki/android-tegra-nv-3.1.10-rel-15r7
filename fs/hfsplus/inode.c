@@ -119,8 +119,8 @@ static ssize_t hfsplus_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
 	ssize_t ret;
 
-	ret = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, hfsplus_get_block, NULL);
+	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
+				 hfsplus_get_block);
 
 	/*
 	 * In case of error extending write may have instantiated a few
@@ -195,11 +195,13 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir,
 	hip->flags = 0;
 	set_bit(HFSPLUS_I_RSRC, &hip->flags);
 
-	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
-	err = hfsplus_find_cat(sb, dir->i_ino, &fd);
-	if (!err)
-		err = hfsplus_cat_read_inode(inode, &fd);
-	hfs_find_exit(&fd);
+	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
+	if (!err) {
+		err = hfsplus_find_cat(sb, dir->i_ino, &fd);
+		if (!err)
+			err = hfsplus_cat_read_inode(inode, &fd);
+		hfs_find_exit(&fd);
+	}
 	if (err) {
 		iput(inode);
 		return ERR_PTR(err);
@@ -296,6 +298,8 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
+		inode_dio_wait(inode);
+
 		error = vmtruncate(inode, attr->ia_size);
 		if (error)
 			return error;
