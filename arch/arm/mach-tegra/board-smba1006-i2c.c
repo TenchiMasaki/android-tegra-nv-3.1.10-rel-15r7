@@ -29,7 +29,7 @@
 #include "board.h"
 #include "devices.h"
 #include "gpio-names.h"
-#include "board-smba1007.h"
+#include "board-smba1006.h"
 
 static struct tegra_i2c_platform_data smba_i2c1_platform_data = {
 	.adapter_nr	= 0,
